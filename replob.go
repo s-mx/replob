@@ -1,100 +1,55 @@
 package main
 
 import (
-	//"log"
-	//"sync"
+    "github.com/s-mx/replob/containers"
+    //"sync"
     //"net/rpc"
 )
 
-type NodeId int
-
-type SetNodes struct {
-    markerNodes map[uint32]bool
-}
-
-func (set *SetNodes) Change(ind uint32, val bool) {
-    set.markerNodes[ind] = val
-}
-
-func NewSetNodes(numberNodes uint32) *SetNodes {
-    ptr_set := new(SetNodes)
-    ptr_set.markerNodes = make(map[uint32]bool)
-    for i := uint32(0); i < numberNodes; i++ {
-        ptr_set.markerNodes[i] = false
-    }
-    return ptr_set
-}
-
-type NodesInfo struct {
-    numberNodes uint32
-    plugInNodes []bool
-}
-
-func NewNodesInfo(numberNodes uint32) *NodesInfo {
-    info := new(NodesInfo)
-    info.numberNodes = numberNodes
-    info.plugInNodes = make([]bool, numberNodes)
-    for i := range info.plugInNodes {
-        info.plugInNodes[i] = true
-    }
-    return info
-}
-
 type MasterlessConfiguration struct {
-    Info NodesInfo
+    Info containers.NodesInfo
 }
 
 func NewMasterlessConfiguration(numberNodes uint32) *MasterlessConfiguration {
     conf := new(MasterlessConfiguration)
-    conf.Info = *NewNodesInfo(numberNodes)
+    conf.Info = *containers.NewNodesInfo(numberNodes)
     return conf
 }
 
 type Carrier struct {
-    Id uint32
+    Id    uint32
     Value int
 }
 
-// States for messages
-const (
-    Vote = iota
-    Commit = iota
-    Disconnect = iota
-)
-
 type Message struct {
     typeMessage int
-    VotedSet SetNodes
-    CarrySet SetNodes
-    NodesSet SetNodes
+    VotedSet    containers.SetNodes
+    CarrySet    containers.SetNodes
+    NodesSet    containers.SetNodes
 }
 
 type Broadcaster interface {
-    Broadcast(Message, NodeId)
-}
-
-type QueueMessages struct {
-
+    Broadcast(Message, containers.NodeId)
 }
 
 type MyMainBroadcaster struct {
-    queue QueueMessages
+    queue containers.QueueMessages
 }
 
-func (broadcaster MyMainBroadcaster) addMessage(msg Message, id NodeId) {
-    broadcaster.queue.push(msg, id)
+func (broadcaster MyMainBroadcaster) addMessage(msg Message, id containers.NodeId) {
+    broadcaster.queue.Push(msg, id)
 }
 
 type MyBroadcaster struct {
-    info *NodesInfo
+    info            *containers.NodesInfo
     mainBroadcaster *MyMainBroadcaster
 }
 
-func (broadcaster MyBroadcaster) addMessage(msg Message, idFrom NodeId) {
+func (broadcaster MyBroadcaster) addMessage(msg Message, idFrom containers.NodeId) {
     broadcaster.mainBroadcaster.addMessage(msg, idFrom)
 }
 
-func (broadcaster MyBroadcaster) Broadcast(msg Message, idFrom NodeId) {
+func (broadcaster MyBroadcaster) Broadcast(msg Message, idFrom containers.NodeId) {
     broadcaster.mainBroadcaster.addMessage(msg, idFrom)
 }
 
@@ -122,8 +77,8 @@ type MyBroadcasterCommiter struct {
 
 type Consensuser interface {
     Propose(Carrier)
-    OnBroadcast(Message, NodeId)
-    OnDisconnect(NodeId)
+    OnBroadcast(Message, containers.NodeId)
+    OnDisconnect(containers.NodeId)
 }
 
 // states for replicas
@@ -136,37 +91,37 @@ const (
 )
 
 type MyConsensuser struct {
-    State int
-    Id NodeId
-    NodesInfo NodesInfo
-    VotedSet SetNodes
-    CarriesSet SetNodes
+    State               int
+    Id                  containers.NodeId
+    NodesInfo           containers.NodesInfo
+    VotedSet            containers.SetNodes
+    CarriesSet          containers.SetNodes
     BroadcasterCommiter BroadcasterCommiter
 }
 
 func (consensuser MyConsensuser) Propose(carrier Carrier) {
-    votedSet := *NewSetNodes(consensuser.NodesInfo.numberNodes)
+    votedSet := *containers.NewSetNodes(consensuser.NodesInfo.Size())
     votedSet.Change(uint32(consensuser.Id), true)
-    consensuser.BroadcasterCommiter.Broadcast(Message{typeMessage:Vote, VotedSet:votedSet}, consensuser.Id)
+    consensuser.BroadcasterCommiter.Broadcast(Message{typeMessage:containers.Vote, VotedSet:votedSet}, consensuser.Id)
 }
 
-func (consensuser MyConsensuser) OnBroadcast(msg Message, idFrom NodeId) {
+func (consensuser MyConsensuser) OnBroadcast(msg Message, idFrom containers.NodeId) {
     if consensuser.State == Completed {
         return
     }
 
-    if !consensuser.NodesInfo.consists(idFrom) {
+    if consensuser.NodesInfo.ConsistsId(idFrom) == false {
         return
     }
 
-    if consensuser.State == MayCommit && consensuser.carriesSet.NotEqual(msg.carrySet) {
+    if consensuser.State == MayCommit && consensuser.CarriesSet.NotEqual(msg.CarrySet) {
         consensuser.State = CannotCommit
     }
 
-    consensuser.CarriesSet.addSet(msg.carrySet)
+    consensuser.CarriesSet.AddSet(msg.CarrySet)
 
-    consensuser.VotedSet.addSet(NewSetNodes().insert(idFrom))
-    consensuser.VotedSet.addSet(NewSetNodes().insert(consensuser.Id))
+    consensuser.VotedSet.AddSet(containers.NewSetFromValue(idFrom))
+    consensuser.VotedSet.AddSet(containers.NewSetNodes(0).Insert(consensuser.Id))
 
     if consensuser.NodesInfo.NotEqual(msg.NodeSet) {
         if consensuser.State == MayCommit {
@@ -188,7 +143,7 @@ func (consensuser MyConsensuser) OnBroadcast(msg Message, idFrom NodeId) {
     if consensuser.State == ToVote {
         consensuser.State = MayCommit
         consensuser.BroadcasterCommiter.Broadcast(Message{typeMessage:Vote, CarrySet:consensuser.CarriesSet,
-                                                  NodesSet:consensuser.NodesInfo.GetSet()})
+            NodesSet:consensuser.NodesInfo.GetSet()})
     }
 }
 
@@ -198,14 +153,14 @@ func (consensuser MyConsensuser) OnDisconnect(idFrom NodeId) {
         consensuser.NodesInfo.erase(idFrom)
     } else {
         set := consensuser.NodesInfo.GetSet()
-        otherSet := SetNodes{}
+        otherSet := containers.SetNodes{}
         otherSet.insert(idFrom)
         consensuser.BroadcasterCommiter.Broadcast(Message{typeMessage:Vote, set.diff(otherSet)})
     }
 }
 
 func NewMasterlessConsensus(broadcasterCommitter BroadcasterCommiter,
-                            conf MasterlessConfiguration, id NodeId) Consensuser {
+conf MasterlessConfiguration, id NodeId) Consensuser {
     var consensuser MyConsensuser
     consensuser.Id = id
     consensuser.State = ToVote

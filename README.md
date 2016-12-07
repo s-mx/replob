@@ -1,1 +1,1 @@
-А еще можно прочитать статью на хабре про интерфейсы https://habrahabr.ru/post/276981/
+![мур](http://murkote.com/wp-content/uploads/2015/05/siamese-cat.jpg)
