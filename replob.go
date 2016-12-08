@@ -2,17 +2,18 @@ package main
 
 import (
     "github.com/s-mx/replob/containers"
+    "github.com/s-mx/replob/nodes"
     //"sync"
     //"net/rpc"
 )
 
 type MasterlessConfiguration struct {
-    Info containers.NodesInfo
+    Info nodes.NodesInfo
 }
 
 func NewMasterlessConfiguration(numberNodes uint32) *MasterlessConfiguration {
     conf := new(MasterlessConfiguration)
-    conf.Info = *containers.NewNodesInfo(numberNodes)
+    conf.Info = *nodes.NewNodesInfo(numberNodes)
     return conf
 }
 
@@ -21,35 +22,28 @@ type Carrier struct {
     Value int
 }
 
-type Message struct {
-    typeMessage int
-    VotedSet    containers.SetNodes
-    CarrySet    containers.SetNodes
-    NodesSet    containers.SetNodes
-}
-
 type Broadcaster interface {
-    Broadcast(Message, containers.NodeId)
+    Broadcast(*containers.Message, nodes.NodeId)
 }
 
 type MyMainBroadcaster struct {
     queue containers.QueueMessages
 }
 
-func (broadcaster MyMainBroadcaster) addMessage(msg Message, id containers.NodeId) {
-    broadcaster.queue.Push(msg, id)
+func (broadcaster *MyMainBroadcaster) addMessage(msg *containers.Message, id nodes.NodeId) {
+    broadcaster.queue.Push(msg, uint32(id))
 }
 
 type MyBroadcaster struct {
-    info            *containers.NodesInfo
+    info            *nodes.NodesInfo
     mainBroadcaster *MyMainBroadcaster
 }
 
-func (broadcaster MyBroadcaster) addMessage(msg Message, idFrom containers.NodeId) {
+func (broadcaster *MyBroadcaster) addMessage(msg *containers.Message, idFrom nodes.NodeId) {
     broadcaster.mainBroadcaster.addMessage(msg, idFrom)
 }
 
-func (broadcaster MyBroadcaster) Broadcast(msg Message, idFrom containers.NodeId) {
+func (broadcaster *MyBroadcaster) Broadcast(msg *containers.Message, idFrom nodes.NodeId) {
     broadcaster.mainBroadcaster.addMessage(msg, idFrom)
 }
 
@@ -77,8 +71,8 @@ type MyBroadcasterCommiter struct {
 
 type Consensuser interface {
     Propose(Carrier)
-    OnBroadcast(Message, containers.NodeId)
-    OnDisconnect(containers.NodeId)
+    OnBroadcast(containers.Message, nodes.NodeId)
+    OnDisconnect(nodes.NodeId)
 }
 
 // states for replicas
@@ -92,20 +86,20 @@ const (
 
 type MyConsensuser struct {
     State               int
-    Id                  containers.NodeId
-    NodesInfo           containers.NodesInfo
-    VotedSet            containers.SetNodes
-    CarriesSet          containers.SetNodes
+    Id                  nodes.NodeId
+    NodesInfo           nodes.NodesInfo
+    VotedSet            containers.Set
+    CarriesSet          containers.Set
     BroadcasterCommiter BroadcasterCommiter
 }
 
 func (consensuser MyConsensuser) Propose(carrier Carrier) {
-    votedSet := *containers.NewSetNodes(consensuser.NodesInfo.Size())
+    votedSet := *containers.NewSet(consensuser.NodesInfo.Size())
     votedSet.Change(uint32(consensuser.Id), true)
-    consensuser.BroadcasterCommiter.Broadcast(Message{typeMessage:containers.Vote, VotedSet:votedSet}, consensuser.Id)
+    consensuser.BroadcasterCommiter.Broadcast(containers.NewMessageVote(containers.Vote, votedSet), consensuser.Id)
 }
 
-func (consensuser MyConsensuser) OnBroadcast(msg Message, idFrom containers.NodeId) {
+func (consensuser MyConsensuser) OnBroadcast(msg containers.Message, idFrom nodes.NodeId) {
     if consensuser.State == Completed {
         return
     }
@@ -114,25 +108,25 @@ func (consensuser MyConsensuser) OnBroadcast(msg Message, idFrom containers.Node
         return
     }
 
-    if consensuser.State == MayCommit && consensuser.CarriesSet.NotEqual(msg.CarrySet) {
+    if consensuser.State == MayCommit && consensuser.CarriesSet.NotEqual(&msg.CarrySet) {
         consensuser.State = CannotCommit
     }
 
-    consensuser.CarriesSet.AddSet(msg.CarrySet)
+    consensuser.CarriesSet.AddSet(&msg.CarrySet)
 
-    consensuser.VotedSet.AddSet(containers.NewSetFromValue(idFrom))
-    consensuser.VotedSet.AddSet(containers.NewSetNodes(0).Insert(consensuser.Id))
+    consensuser.VotedSet.AddSet(containers.NewSetFromValue(uint32(idFrom)))
+    consensuser.VotedSet.AddSet(containers.NewSetFromValue(uint32(consensuser.Id)))
 
-    if consensuser.NodesInfo.NotEqual(msg.NodeSet) {
+    if consensuser.NodesInfo.NodesNotEqual(&msg.NodesSet) {
         if consensuser.State == MayCommit {
             consensuser.State = CannotCommit
         }
 
-        consensuser.NodesInfo.multiply(msg.NodesSet)
-        consensuser.VotedSet.multiply(msg.NodesSet)
+        consensuser.NodesInfo.IntersectNodes(&msg.NodesSet)
+        consensuser.VotedSet.Intersect(&msg.NodesSet)
     }
 
-    if consensuser.VotedSet.Equal(consensuser.NodesInfo.GetSet()) {
+    if consensuser.VotedSet.Equal(&consensuser.NodesInfo.GetSet()) { // trouble
         if consensuser.State == MayCommit {
             consensuser.BroadcasterCommiter.Broadcast(Message{typeMessage:Commit, CarrySet:consensuser.CarriesSet})
         } else {
@@ -159,8 +153,8 @@ func (consensuser MyConsensuser) OnDisconnect(idFrom NodeId) {
     }
 }
 
-func NewMasterlessConsensus(broadcasterCommitter BroadcasterCommiter,
-conf MasterlessConfiguration, id NodeId) Consensuser {
+func NewMasterlessConsensus(broadcasterCommitter *BroadcasterCommiter,
+                            conf *MasterlessConfiguration, id NodeId) Consensuser {
     var consensuser MyConsensuser
     consensuser.Id = id
     consensuser.State = ToVote

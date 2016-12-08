@@ -1,1 +1,1 @@
-![мур](http://murkote.com/wp-content/uploads/2015/05/siamese-cat.jpg)
+![мур](http://murkote.com/wp-contentто е/uploads/2015/05/siamese-cat.jpg)
