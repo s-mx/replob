@@ -14,10 +14,17 @@ type Message struct {
     NodesSet    Set
 }
 
-func NewMessageVote(typeMesssage int, votedSet Set) *Message {
+func NewMessageVote(typeMessage int, votedSet Set) *Message {
     ptrMessage := new(Message)
-    ptrMessage.typeMessage = typeMesssage
+    ptrMessage.typeMessage = typeMessage
     ptrMessage.VotedSet = votedSet
+    return ptrMessage
+}
+
+func NewMessageCommit(typeMessage int, CarrySet Set) *Message {
+    ptrMessage := new(Message)
+    ptrMessage.typeMessage = typeMessage
+    ptrMessage.VotedSet = CarrySet
     return ptrMessage
 }
 
