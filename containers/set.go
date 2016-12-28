@@ -1,47 +1,51 @@
 package containers
 
 type Set struct {
-    // Just info about state of replica
-    flagNodes map[uint32]bool
+	// Just info about state of replica
+	maskNodes uint64
 }
 
 func NewSet(numberNodes uint32) *Set {
-    ptrSet := new(Set)
-    ptrSet.flagNodes = make(map[uint32]bool)
-    for i := uint32(0); i < uint32(numberNodes); i++ {
-        ptrSet.flagNodes[i] = true
-    }
+	ptrSet := new(Set)
+	for i := uint32(0); i < uint32(numberNodes); i++ {
+		ptrSet.maskNodes = ptrSet.maskNodes | (1 << i)
+	}
 
-    return ptrSet
+	return ptrSet
 }
 
 func NewSetFromValue(value uint32) *Set {
-    ptrSet := new(Set)
-    ptrSet.flagNodes = make(map[uint32]bool)
-    ptrSet.flagNodes[value] = true
-    return ptrSet
-}
-
-func (set *Set) Change(id uint32, val bool) {
-    set.flagNodes[id] = val
+	ptrSet := new(Set)
+	ptrSet.maskNodes = 1 << value
+	return ptrSet
 }
 
 func (set *Set) Equal(rgh *Set) bool {
-    return true // dummy
+	return set.maskNodes == rgh.maskNodes
 }
 
 func (set *Set) NotEqual(rgh *Set) bool {
-    return ! set.Equal(rgh)
+	return !set.Equal(rgh)
 }
 
-func (set* Set) AddSet(rghSet *Set) {
-    // dummy
+func (set *Set) AddSet(rghSet *Set) {
+	set.maskNodes |= rghSet.maskNodes
 }
 
-func (set* Set) Insert(id uint32) {
-
+func (set *Set) Insert(id uint32) {
+	set.maskNodes |= uint64(1) << id
 }
 
-func (set *Set) Intersect(otherSet *Set) {
-    // dummy
+func (set *Set) Intersect(rgh *Set) {
+	set.maskNodes &= rgh.maskNodes
+}
+
+func (set *Set) Erase(id uint32) {
+	set.maskNodes ^= 1 << id
+}
+
+func (set *Set) Diff(rgh *Set) *Set {
+	ptrSet := NewSet(0)
+	ptrSet.maskNodes = (set.maskNodes | rgh.maskNodes) ^ rgh.maskNodes
+	return ptrSet
 }

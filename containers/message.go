@@ -2,32 +2,33 @@ package containers
 
 // States for messages
 const (
-    Vote       = iota
-    Commit     = iota
-    Disconnect = iota
+	Vote       = iota
+	Commit     = iota
+	Disconnect = iota
 )
 
 type Message struct {
-    typeMessage int
-    VotedSet    Set
-    CarrySet    Set
-    NodesSet    Set
+	typeMessage int
+	VotedSet    Set
+	CarrySet    Set
+	NodesSet    Set
 }
 
-func NewMessageVote(typeMessage int, votedSet Set) *Message {
-    ptrMessage := new(Message)
-    ptrMessage.typeMessage = typeMessage
-    ptrMessage.VotedSet = votedSet
-    return ptrMessage
+func NewMessageVote(typeMessage int, votedSet *Set, nodesSet *Set) *Message {
+	ptrMessage := new(Message)
+	ptrMessage.typeMessage = typeMessage
+	ptrMessage.VotedSet = *votedSet
+	ptrMessage.NodesSet = *nodesSet
+	return ptrMessage
 }
 
-func NewMessageCommit(typeMessage int, CarrySet Set) *Message {
-    ptrMessage := new(Message)
-    ptrMessage.typeMessage = typeMessage
-    ptrMessage.VotedSet = CarrySet
-    return ptrMessage
+func NewMessageCommit(typeMessage int, CarrySet *Set) *Message {
+	ptrMessage := new(Message)
+	ptrMessage.typeMessage = typeMessage
+	ptrMessage.VotedSet = *CarrySet
+	return ptrMessage
 }
 
 func (msg *Message) GetType() int {
-    return msg.typeMessage
+	return msg.typeMessage
 }
