@@ -6,10 +6,23 @@ import (
 )
 
 type Broadcaster interface {
-	Broadcast(*cont.Message, nodes.NodeId)
+	Broadcast(cont.Message, nodes.NodeId)
 }
 
 type SimpleBroadcaster struct {
+}
+
+func NewSimpleBroadcaster(info nodes.NodesInfo) *SimpleBroadcaster {
+	ptr := new(SimpleBroadcaster)
+	return ptr
+}
+
+func (broadcaster *SimpleBroadcaster) AddMessage(msg cont.Message, idFrom nodes.NodeId, idDest nodes.NodeId) {
+
+}
+
+func (broadcaster *SimpleBroadcaster) Broadcast(msg cont.Message, idFrom nodes.NodeId) {
+
 }
 
 type MyMainBroadcaster struct {

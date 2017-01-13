@@ -9,23 +9,27 @@ const (
 
 type Message struct {
 	typeMessage int
+	Stamp       int
 	VotedSet    Set
-	CarrySet    Set
+	CarriesSet  CarriesSet
 	NodesSet    Set
 }
 
-func NewMessageVote(typeMessage int, votedSet *Set, nodesSet *Set) *Message {
+func NewMessageVote(typeMessage int, stamp int, carrySet *CarriesSet, votedSet *Set, nodesSet *Set) *Message {
 	ptrMessage := new(Message)
 	ptrMessage.typeMessage = typeMessage
+	ptrMessage.Stamp = stamp
+	ptrMessage.CarriesSet = *carrySet
 	ptrMessage.VotedSet = *votedSet
 	ptrMessage.NodesSet = *nodesSet
 	return ptrMessage
 }
 
-func NewMessageCommit(typeMessage int, CarrySet *Set) *Message {
+func NewMessageCommit(typeMessage int, stamp int, CarrySet *CarriesSet) *Message {
 	ptrMessage := new(Message)
+	ptrMessage.Stamp = stamp
 	ptrMessage.typeMessage = typeMessage
-	ptrMessage.VotedSet = *CarrySet
+	ptrMessage.CarriesSet = *CarrySet
 	return ptrMessage
 }
 

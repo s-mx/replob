@@ -20,6 +20,41 @@ func NewSetFromValue(value uint32) *Set {
 	return ptrSet
 }
 
+func (set *Set) Size() uint32 {
+	result := uint32(0)
+	one := uint64(1)
+	for ind := 0; ind < 64; ind++ {
+		if (set.maskNodes & (one << uint(ind))) > 0 {
+			result++
+		}
+	}
+
+	return result
+}
+
+func (set *Set) Get(ind uint32) uint32 {
+	var counter, indexSet uint32
+	one := uint64(1)
+	for counter < ind {
+		if (set.maskNodes & (one << uint(indexSet))) > 0 {
+			counter++
+		}
+
+		if counter == ind {
+			return indexSet
+		}
+
+		indexSet++
+	}
+
+	return 0
+}
+
+func (set *Set) Consist(elem uint32) bool {
+	one := uint64(1)
+	return (set.maskNodes & (one << elem)) > 0
+}
+
 func (set *Set) Equal(rgh *Set) bool {
 	return set.maskNodes == rgh.maskNodes
 }

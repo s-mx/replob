@@ -5,22 +5,16 @@ import (
 	"testing"
 )
 
-func Run(t *testing.T) {
-}
-
-func TestSimple(t *testing.T) {
+func TestOneNode(t *testing.T) {
 	conf := NewMasterlessConfiguration(1)
-	carry := NewCarrier(0, 1)
-	broadcaster := NewSimpleBroadcaster()
-	committer := NewSimpleCommitter()
-	cons := NewConsensuser(broadcaster, committer, conf, 0)
+	carry := cont.NewCarry(1)
+	bc := NewSimpleBroadcaster(conf.Info)
+	cm := NewSimpleCommitter(conf.Info)
+	cons := NewConsensuser(bc, cm, conf, 0)
 
-	cons.Propose(carry)
-	for broadcaster.Length() > 0 {
-		switch msg := broadcaster.Get(0); msg.typeMessage {
-		case cont.Vote:
-		case cont.Commit: // Кажется, будто не нужно
-		case cont.Disconnect:
-		}
+	cons.Propose(*carry)
+	if cm.GetStatus(0) == false {
+		t.Error("Carry isn't committed")
+		t.Fail()
 	}
 }
