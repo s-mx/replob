@@ -36,3 +36,8 @@ func NewMessageCommit(typeMessage int, stamp int, CarrySet *CarriesSet) *Message
 func (msg *Message) GetType() int {
 	return msg.typeMessage
 }
+
+// For testing purposes
+func (msg *Message) notEqual(otherMsg *Message) bool {
+	return msg.VotedSet.NotEqual(&otherMsg.VotedSet)
+}
