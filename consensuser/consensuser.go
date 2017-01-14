@@ -105,7 +105,8 @@ func (consensuser *MyConsensuser) OnBroadcast(msg cont.Message, idFrom nodes.Nod
 		}
 
 		consensuser.NodesInfo.IntersectNodes(&msg.NodesSet)
-		consensuser.VotedSet.Intersect(&msg.NodesSet)
+		consensuser.VotedSet.Clear()
+		//consensuser.VotedSet.Intersect(&msg.NodesSet)
 	}
 
 	nodesSet := consensuser.NodesInfo.GetSet()
@@ -115,6 +116,7 @@ func (consensuser *MyConsensuser) OnBroadcast(msg cont.Message, idFrom nodes.Nod
 			//consensuser.broadcaster.Broadcast(cont.NewMessageCommit(cont.Commit, &consensuser.CarriesSet), consensuser.Id) // We need more too looong lines
 		} else {
 			consensuser.State = ToVote
+			consensuser.VotedSet.Clear()
 		}
 	}
 

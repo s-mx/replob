@@ -50,6 +50,10 @@ func (set *Set) Get(ind uint32) uint32 {
 	return 0
 }
 
+func (set *Set) Clear() {
+	set.maskNodes = 0
+}
+
 func (set *Set) Consist(elem uint32) bool {
 	one := uint64(1)
 	return (set.maskNodes & (one << elem)) > 0
