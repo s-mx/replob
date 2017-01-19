@@ -4,20 +4,21 @@ package containers
 const (
 	Vote       = iota
 	Commit     = iota
-	Disconnect = iota
 )
+
+type Stamp int
 
 type Message struct {
 	typeMessage int
-	Stamp       int
+	Stamp       Stamp
 	VotedSet    Set
 	CarriesSet  CarriesSet
 	NodesSet    Set
 }
 
-func NewMessageVote(typeMessage int, stamp int, carrySet *CarriesSet, votedSet *Set, nodesSet *Set) *Message {
+func NewMessageVote(stamp Stamp, carrySet *CarriesSet, votedSet *Set, nodesSet *Set) *Message {
 	ptrMessage := new(Message)
-	ptrMessage.typeMessage = typeMessage
+	ptrMessage.typeMessage = Vote
 	ptrMessage.Stamp = stamp
 	ptrMessage.CarriesSet = *carrySet
 	ptrMessage.VotedSet = *votedSet
@@ -25,10 +26,10 @@ func NewMessageVote(typeMessage int, stamp int, carrySet *CarriesSet, votedSet *
 	return ptrMessage
 }
 
-func NewMessageCommit(typeMessage int, stamp int, CarrySet *CarriesSet) *Message {
+func NewMessageCommit(stamp Stamp, CarrySet *CarriesSet) *Message {
 	ptrMessage := new(Message)
 	ptrMessage.Stamp = stamp
-	ptrMessage.typeMessage = typeMessage
+	ptrMessage.typeMessage = Commit
 	ptrMessage.CarriesSet = *CarrySet
 	return ptrMessage
 }

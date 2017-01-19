@@ -15,9 +15,7 @@ func NewSet(numberNodes uint32) *Set {
 }
 
 func NewSetFromValue(value uint32) *Set {
-	ptrSet := new(Set)
-	ptrSet.maskNodes = 1 << value
-	return ptrSet
+	return &Set{maskNodes:1<<value}
 }
 
 func (set *Set) Size() uint32 {
