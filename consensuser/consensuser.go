@@ -13,7 +13,6 @@ type Consensuser interface {
 
 // states for replicas
 const (
-	Initial      = iota
 	ToVote       = iota
 	MayCommit    = iota
 	CannotCommit = iota
@@ -63,7 +62,7 @@ func (consensuser *MyConsensuser) Propose(carrier cont.Carry) {
 	votedSet := cont.NewSet(0)
 	votedSet.Insert(uint32(consensuser.Id))
 	nodesSet := consensuser.NodesInfo.GetSet()
-    consensuser.State = Initial
+    consensuser.State = ToVote
 
 	carrySet := cont.NewCarriesSet(carrier)
 	stamp := consensuser.NextStamp()
@@ -127,7 +126,7 @@ func (consensuser *MyConsensuser) OnBroadcast(msg cont.Message, idFrom nodes.Nod
 
 func (consensuser *MyConsensuser) OnDisconnect(idFrom nodes.NodeId) {
 	consensuser.NodesInfo.Erase(idFrom)
-	if consensuser.State == Initial {
+	if consensuser.State == ToVote {
 		consensuser.NodesInfo.Erase(idFrom)
 	} else {
 		set := consensuser.NodesInfo.GetSet()

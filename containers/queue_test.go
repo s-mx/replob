@@ -17,9 +17,9 @@ func TestPushPop(t *testing.T) {
 	nodesSet := NewSet(10)
 
 	for ind := 0; ind < 10; ind++ {
-		messages = append(messages, *NewMessageVote(Vote, ind, carriesSet, votedSet, nodesSet))
+		messages = append(messages, *NewMessageVote(Stamp(ind), carriesSet, votedSet, nodesSet))
 		votedSet.Insert(uint32(ind))
-		queue.Push(messages[ind], uint32(ind))
+		queue.Push(&messages[ind], uint32(ind))
 		if queue.Size() != ind+1 {
 			t.Error("Size of queue after push is wrong")
 		}

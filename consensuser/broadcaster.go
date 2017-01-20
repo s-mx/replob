@@ -10,38 +10,27 @@ type Broadcaster interface {
 }
 
 type SimpleBroadcaster struct {
+    info nodes.NodesInfo
+    queues []cont.QueueMessages
 }
 
 func NewSimpleBroadcaster(info nodes.NodesInfo) *SimpleBroadcaster {
-	ptr := new(SimpleBroadcaster)
-	return ptr
-}
-
-func (broadcaster *SimpleBroadcaster) AddMessage(msg cont.Message, idFrom nodes.NodeId, idDest nodes.NodeId) {
-
+	return &SimpleBroadcaster{info:info, queues:make([]cont.QueueMessages, info.Size())}
 }
 
 func (broadcaster *SimpleBroadcaster) Broadcast(msg cont.Message, idFrom nodes.NodeId) {
-
+	for ind := 0; uint32(ind) < broadcaster.info.Size(); ind++ {
+        if ind != int(idFrom) {
+            broadcaster.queues[ind].Push(&msg, uint32(idFrom))
+        }
+    }
 }
 
-type MyMainBroadcaster struct {
-	queue cont.QueueMessages
-}
+func (broadcaster *SimpleBroadcaster) proceedMessage(idFrom int, cons *MyConsensuser) {
+    if broadcaster.queues[idFrom].Size() == 0 {
+        return
+    }
 
-func (broadcaster *MyMainBroadcaster) addMessage(msg *cont.Message, id nodes.NodeId) {
-	broadcaster.queue.Push(msg, uint32(id))
-}
-
-type MyBroadcaster struct {
-	info            *nodes.NodesInfo
-	mainBroadcaster *MyMainBroadcaster
-}
-
-func (broadcaster *MyBroadcaster) addMessage(msg *cont.Message, idFrom nodes.NodeId) {
-	broadcaster.mainBroadcaster.addMessage(msg, idFrom)
-}
-
-func (broadcaster *MyBroadcaster) Broadcast(msg *cont.Message, idFrom nodes.NodeId) {
-	broadcaster.mainBroadcaster.addMessage(msg, idFrom)
+    msg, id := broadcaster.queues[idFrom].Pop()
+    cons.OnBroadcast(msg, nodes.NodeId(id))
 }
