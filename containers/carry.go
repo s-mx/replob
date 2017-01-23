@@ -3,17 +3,18 @@ package containers
 import "sort"
 
 var countId int
+type Payload int
 
 type Carry struct {
 	Id    int
-	value int // payload
+	value Payload // payload
 }
 
 func NewCarry(val int) *Carry {
 	ptr := new(Carry)
 	ptr.Id = countId
 	countId++
-	ptr.value = val
+	ptr.value = Payload(val)
 	return ptr
 }
 
@@ -88,4 +89,8 @@ func (set *CarriesSet) Size() int {
 
 func (set *CarriesSet) Get(ind int) Carry {
 	return set.carrySeq[ind]
+}
+
+func (set *CarriesSet) Clear() {
+	set.carrySeq = make([]Carry, 0)
 }

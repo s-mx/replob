@@ -7,8 +7,8 @@ import (
 
 type Consensuser interface {
 	Propose(cont.Carry)
-	OnBroadcast(cont.Message, nodes.NodeId)
-	OnDisconnect(nodes.NodeId)
+	OnBroadcast(cont.Message)
+	OnDisconnect(cont.NodeId)
 }
 
 // states for replicas
@@ -21,7 +21,7 @@ const (
 
 type MyConsensuser struct {
     State       int
-	Id          nodes.NodeId
+	Id          cont.NodeId
 	myStamp     cont.Stamp
 	Stamps      []cont.Stamp
 	NodesInfo   nodes.NodesInfo
@@ -29,27 +29,30 @@ type MyConsensuser struct {
 	CarriesSet  cont.CarriesSet
 	broadcaster Broadcaster
 	committer   Committer
+    activatedFlag   bool
 }
 
 func NewConsensuser(broadcaster Broadcaster, committer Committer,
-	conf *MasterlessConfiguration, id nodes.NodeId) *MyConsensuser {
-	ptrConsensuser := new(MyConsensuser)
-	ptrConsensuser.Id = id
-	ptrConsensuser.Stamps = make([]cont.Stamp, conf.GetNumberNodes())
-	ptrConsensuser.State = ToVote
-	ptrConsensuser.NodesInfo = conf.Info
-	ptrConsensuser.broadcaster = broadcaster
-	ptrConsensuser.committer = committer
-	return ptrConsensuser
+	conf *MasterlessConfiguration, id cont.NodeId) *MyConsensuser {
+	return &MyConsensuser{
+        State:ToVote,
+        Id:id,
+        myStamp:cont.Stamp(0),
+        Stamps:make([]cont.Stamp, conf.GetNumberNodes()),
+        NodesInfo:conf.Info,
+        broadcaster:broadcaster,
+        committer:committer,
+        activatedFlag:false,
+    }
 }
 
-func (consensuser *MyConsensuser) messageIsOutdated(msg cont.Message, idFrom nodes.NodeId) bool {
-	return consensuser.Stamps[uint32(idFrom)] >= msg.Stamp
+func (consensuser *MyConsensuser) messageIsOutdated(msg cont.Message) bool {
+	return consensuser.Stamps[uint32(msg.IdFrom)] >= msg.Stamp
 }
 
-func (consensuser *MyConsensuser) updateMessageStamp(msg cont.Message, idFrom nodes.NodeId) {
-	if consensuser.messageIsOutdated(msg, idFrom) == false {
-		consensuser.Stamps[int(idFrom)] = msg.Stamp
+func (consensuser *MyConsensuser) updateMessageStamp(msg cont.Message) {
+	if consensuser.messageIsOutdated(msg) == false {
+		consensuser.Stamps[int(msg.IdFrom)] = msg.Stamp
 	}
 }
 
@@ -63,16 +66,92 @@ func (consensuser *MyConsensuser) Propose(carrier cont.Carry) {
 	votedSet.Insert(uint32(consensuser.Id))
 	nodesSet := consensuser.NodesInfo.GetSet()
     consensuser.State = ToVote
+    consensuser.Activate()
 
 	carrySet := cont.NewCarriesSet(carrier)
 	stamp := consensuser.NextStamp()
-	msg := cont.NewMessageVote(stamp, carrySet, votedSet, &nodesSet)
-	consensuser.broadcaster.Broadcast(*msg, consensuser.Id)
-    consensuser.OnBroadcast(*msg, consensuser.Id)
+	msg := cont.NewMessageVote(stamp, carrySet, votedSet, &nodesSet, consensuser.Id)
+	consensuser.broadcaster.Broadcast(*msg)
+    consensuser.OnBroadcast(*msg)
 }
 
-func (consensuser *MyConsensuser) OnBroadcast(msg cont.Message, idFrom nodes.NodeId) {
-    if consensuser.Id != idFrom && consensuser.messageIsOutdated(msg, idFrom) {
+func (consensuser *MyConsensuser) checkInvariant(msg *cont.Message) bool {
+    return consensuser.CarriesSet.Equal(&msg.CarriesSet) &&
+           consensuser.NodesInfo.NodesEqual(&msg.NodesSet)
+}
+
+func (consensuser *MyConsensuser) mergeVotes(msg *cont.Message) {
+    consensuser.CarriesSet.AddSet(&msg.CarriesSet)
+    consensuser.NodesInfo.IntersectNodes(&msg.NodesSet)
+}
+
+func (consensuser *MyConsensuser) newVote(carrySet *cont.CarriesSet, nodesSet *cont.Set) *cont.Message {
+    stamp := consensuser.NextStamp()
+    return cont.NewMessageVote(stamp, carrySet, &consensuser.VotedSet, nodesSet, consensuser.Id)
+}
+
+func (consensuser *MyConsensuser) Activated() bool {
+    return consensuser.activatedFlag
+}
+
+func (consensuser *MyConsensuser) NotActivated() bool {
+    return ! consensuser.Activated()
+}
+
+func (consensuser *MyConsensuser) Activate() {
+    consensuser.activatedFlag = true
+}
+
+func (consensuser *MyConsensuser) OnVote(msg cont.Message) {
+    if consensuser.messageIsOutdated(msg) ||
+       consensuser.NodesInfo.ConsistsId(msg.IdFrom) == false {
+        return
+    }
+
+    if consensuser.State == MayCommit && consensuser.checkInvariant(&msg) == false {
+        consensuser.State = CannotCommit
+    }
+
+    consensuser.mergeVotes(&msg)
+    consensuser.VotedSet.AddSet(cont.NewSetFromValue(uint32(consensuser.Id)))
+    consensuser.VotedSet.AddSet(cont.NewSetFromValue(uint32(msg.IdFrom)))
+    consensuser.VotedSet.Intersect(&msg.NodesSet)
+
+    if consensuser.NotActivated() {
+        consensuser.Activate()
+		nodesSet := consensuser.NodesInfo.GetSet()
+        voteMsg := consensuser.newVote(&consensuser.CarriesSet, &nodesSet)
+        consensuser.broadcaster.Broadcast(*voteMsg)
+    }
+
+    if consensuser.VotedSet.Equal(&msg.NodesSet) {
+        if consensuser.State == MayCommit {
+            consensuser.State = Completed
+            consensuser.committer.BroadcastSet(consensuser.CarriesSet)
+            consensuser.OnCommit()
+            consensuser.CleanUp()
+        } else {
+            consensuser.State = MayCommit
+            consensuser.VotedSet.Clear()
+			nodesSet := consensuser.NodesInfo.GetSet()
+			voteMsg := consensuser.newVote(&consensuser.CarriesSet, &nodesSet)
+            consensuser.broadcaster.Broadcast(*voteMsg)
+        }
+    }
+}
+
+func (consensuser *MyConsensuser) OnCommit() {
+	consensuser.committer.CommitSet(consensuser.CarriesSet)
+}
+
+func (consensuser *MyConsensuser) CleanUp() {
+	consensuser.CarriesSet.Clear()
+	consensuser.State = ToVote
+	consensuser.VotedSet.Clear()
+}
+
+func (consensuser *MyConsensuser) OnBroadcast(msg cont.Message) {
+    if consensuser.Id != msg.IdFrom && consensuser.messageIsOutdated(msg) {
         return
     }
 
@@ -80,11 +159,11 @@ func (consensuser *MyConsensuser) OnBroadcast(msg cont.Message, idFrom nodes.Nod
 		return
 	}
 
-	if consensuser.NodesInfo.ConsistsId(idFrom) == false {
+	if consensuser.NodesInfo.ConsistsId(msg.IdFrom) == false {
 		return
 	}
 
-	consensuser.updateMessageStamp(msg, idFrom)
+	consensuser.updateMessageStamp(msg)
 
 	if consensuser.State == MayCommit && consensuser.CarriesSet.NotEqual(&msg.CarriesSet) {
 		consensuser.State = CannotCommit
@@ -92,7 +171,7 @@ func (consensuser *MyConsensuser) OnBroadcast(msg cont.Message, idFrom nodes.Nod
 
 	consensuser.CarriesSet.AddSet(&msg.CarriesSet)
 
-	consensuser.VotedSet.AddSet(cont.NewSetFromValue(uint32(idFrom)))
+	consensuser.VotedSet.AddSet(cont.NewSetFromValue(uint32(msg.IdFrom)))
 	consensuser.VotedSet.AddSet(cont.NewSetFromValue(uint32(consensuser.Id)))
 
 	if consensuser.NodesInfo.NodesNotEqual(&msg.NodesSet) {
@@ -119,12 +198,12 @@ func (consensuser *MyConsensuser) OnBroadcast(msg cont.Message, idFrom nodes.Nod
 	if consensuser.State == ToVote {
 		consensuser.State = MayCommit
 		stamp := consensuser.NextStamp()
-		msg := cont.NewMessageVote(stamp, &consensuser.CarriesSet, &consensuser.VotedSet, &nodesSet)
-		consensuser.broadcaster.Broadcast(*msg, consensuser.Id)
+		msg := cont.NewMessageVote(stamp, &consensuser.CarriesSet, &consensuser.VotedSet, &nodesSet, consensuser.Id)
+		consensuser.broadcaster.Broadcast(*msg)
 	}
 }
 
-func (consensuser *MyConsensuser) OnDisconnect(idFrom nodes.NodeId) {
+func (consensuser *MyConsensuser) OnDisconnect(idFrom cont.NodeId) {
 	consensuser.NodesInfo.Erase(idFrom)
 	if consensuser.State == ToVote {
 		consensuser.NodesInfo.Erase(idFrom)
@@ -133,8 +212,7 @@ func (consensuser *MyConsensuser) OnDisconnect(idFrom nodes.NodeId) {
 		otherSet := cont.NewSetFromValue(uint32(idFrom))
 		stamp := consensuser.NextStamp()
 		votedSet := consensuser.VotedSet.Diff(otherSet)
-		msg := cont.NewMessageVote(stamp, &consensuser.CarriesSet, votedSet, set.Diff(otherSet))
-		consensuser.broadcaster.Broadcast(*msg, idFrom)
-		//consensuser.broadcaster.Broadcast(cont.NewMessageVote(cont.Vote, set.Diff(otherSet), &set), idFrom)
-	}
+		msg := cont.NewMessageVote(stamp, &consensuser.CarriesSet, votedSet, set.Diff(otherSet), idFrom)
+		consensuser.broadcaster.Broadcast(*msg)
+    }
 }

@@ -6,7 +6,7 @@ import (
 )
 
 type Broadcaster interface {
-	Broadcast(cont.Message, nodes.NodeId)
+	Broadcast(cont.Message)
 }
 
 type SimpleBroadcaster struct {
@@ -18,10 +18,10 @@ func NewSimpleBroadcaster(info nodes.NodesInfo) *SimpleBroadcaster {
 	return &SimpleBroadcaster{info:info, queues:make([]cont.QueueMessages, info.Size())}
 }
 
-func (broadcaster *SimpleBroadcaster) Broadcast(msg cont.Message, idFrom nodes.NodeId) {
+func (broadcaster *SimpleBroadcaster) Broadcast(msg cont.Message) {
 	for ind := 0; uint32(ind) < broadcaster.info.Size(); ind++ {
-        if ind != int(idFrom) {
-            broadcaster.queues[ind].Push(&msg, uint32(idFrom))
+        if ind != int(msg.IdFrom) {
+            broadcaster.queues[ind].Push(&msg)
         }
     }
 }
@@ -31,6 +31,6 @@ func (broadcaster *SimpleBroadcaster) proceedMessage(idFrom int, cons *MyConsens
         return
     }
 
-    msg, id := broadcaster.queues[idFrom].Pop()
-    cons.OnBroadcast(msg, nodes.NodeId(id))
+    msg := broadcaster.queues[idFrom].Pop()
+    cons.OnBroadcast(msg)
 }

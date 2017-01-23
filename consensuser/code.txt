@@ -1,0 +1,41 @@
+checkInvariant(cons, msg):
+    return cons.carries != msg.carries or cons.nodes != msg.nodes
+
+MergeVotes(cons, msg):
+    cons.carries |= msg.carries
+    cons.nodes &= msg.nodes
+
+OnVote(cons, msg):
+    if msg.IsOutdated() or cons.info.NotConsist(msg.idNode):
+        return
+
+    if cons.state == MayCommit and checkInvariant(cons, msg):
+        cons.state = CannotCommit
+
+    mergeVotes(cons, msg)
+    cons.voted |= cons.current_node
+    cons.voted |= msg.idFrom
+
+    cons.voted &= msg.nodes
+
+    if cons.NotActivated():
+        cons.Activate()
+        Broadcast(Vote(cons.carries, cons.nodes))
+
+    if cons.voted == msg.nodes:
+        if cons.state == MayCommit:
+            cons.state = Completed
+            BroadcastCommit(cons)
+            OnCommit(cons)
+            CleanUp(cons)
+        else:
+            cons.state = MayCommit
+            cons.voted.clear()
+            Broadcast(Vote(cons.carries, cons.nodes))
+
+
+OnDisconnect(cons, msg):
+    if msg.IsOutdated():
+        return
+
+    OnVote(Vote(cons.carries, cons.nodes - msg.idFrom))

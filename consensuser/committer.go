@@ -8,27 +8,22 @@ import (
 type Committer interface {
 	Commit(cont.Carry)
 	CommitSet(cont.CarriesSet)
-}
-
-type MyCommitter struct {
-}
-
-func (commiter *MyCommitter) Commit(carrier cont.Carry) {
-
+	Broadcast(cont.Carry)
+	BroadcastSet(set cont.CarriesSet)
 }
 
 type SimpleCommitter struct {
-	resultStatus []bool
+	Carries []cont.Carry
 }
 
 func NewSimpleCommitter(info nodes.NodesInfo) *SimpleCommitter {
-	ptr := new(SimpleCommitter)
-	ptr.resultStatus = make([]bool, info.Size())
-	return ptr
+	return &SimpleCommitter{
+		Carries:make([]cont.Carry, info.Size()),
+	}
 }
 
 func (committer *SimpleCommitter) Commit(carry cont.Carry) {
-	committer.resultStatus[carry.Id] = true
+	committer.Carries = append(committer.Carries, carry)
 }
 
 func (committer *SimpleCommitter) CommitSet(set cont.CarriesSet) {
@@ -38,6 +33,19 @@ func (committer *SimpleCommitter) CommitSet(set cont.CarriesSet) {
 	}
 }
 
-func (committer *SimpleCommitter) GetStatus(ind int) bool {
-	return committer.resultStatus[ind]
+func (committer *SimpleCommitter) Broadcast(carry cont.Carry) {
+	// пока что оставим так
+}
+
+func (committer *SimpleCommitter) BroadcastSet(carriesSet cont.CarriesSet) {
+	// пока что оставим так
+}
+
+func (committer *SimpleCommitter) CheckLastCarry(carry *cont.Carry) bool {
+	lastInd := len(committer.Carries) - 1
+	if lastInd < 0 {
+		return false
+	}
+
+	return committer.Carries[lastInd].Equal(*carry)
 }

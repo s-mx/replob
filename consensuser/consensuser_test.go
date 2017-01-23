@@ -13,7 +13,7 @@ func TestOneNode(t *testing.T) {
 	cons := NewConsensuser(bc, cm, conf, 0)
 
 	cons.Propose(*carry)
-	if cm.GetStatus(0) == false {
+	if cm.CheckLastCarry(carry) == false {
 		t.Error("Carry isn't committed")
 		t.Fail()
 	}

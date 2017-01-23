@@ -2,11 +2,10 @@ package containers
 
 type queueItem struct {
 	msg Message
-	id  uint32
 }
 
-func newQueueItem(msg Message, idFrom uint32) *queueItem {
-	return &queueItem{msg, idFrom}
+func newQueueItem(msg Message) *queueItem {
+	return &queueItem{msg}
 }
 
 type QueueMessages struct {
@@ -23,12 +22,12 @@ func (queue *QueueMessages) Size() int {
 	return len(queue.arr)
 }
 
-func (queue *QueueMessages) Push(msg *Message, idFrom uint32) {
+func (queue *QueueMessages) Push(msg *Message) {
 	if len(queue.arr) == cap(queue.arr) {
 		queue.reallocate()
 	}
 
-	queue.arr = append(queue.arr, *newQueueItem(*msg, idFrom))
+	queue.arr = append(queue.arr, *newQueueItem(*msg))
 }
 
 func (queue *QueueMessages) reallocate() {
@@ -41,8 +40,8 @@ func (queue *QueueMessages) reallocate() {
 	queue.arr = newPtr
 }
 
-func (queue *QueueMessages) Pop() (Message, uint32) {
+func (queue *QueueMessages) Pop() Message {
 	firstElem := queue.arr[0]
 	queue.arr = append(queue.arr[:0], queue.arr[1:]...)
-	return firstElem.msg, firstElem.id
+	return firstElem.msg
 }

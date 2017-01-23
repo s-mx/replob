@@ -6,6 +6,7 @@ const (
 	Commit     = iota
 )
 
+type NodeId int
 type Stamp int
 
 type Message struct {
@@ -14,24 +15,26 @@ type Message struct {
 	VotedSet    Set
 	CarriesSet  CarriesSet
 	NodesSet    Set
+	IdFrom		NodeId
 }
 
-func NewMessageVote(stamp Stamp, carrySet *CarriesSet, votedSet *Set, nodesSet *Set) *Message {
-	ptrMessage := new(Message)
-	ptrMessage.typeMessage = Vote
-	ptrMessage.Stamp = stamp
-	ptrMessage.CarriesSet = *carrySet
-	ptrMessage.VotedSet = *votedSet
-	ptrMessage.NodesSet = *nodesSet
-	return ptrMessage
+func NewMessageVote(stamp Stamp, carrySet *CarriesSet, votedSet *Set, nodesSet *Set, idFrom NodeId) *Message {
+	return &Message{
+        typeMessage:Vote,
+        Stamp:stamp,
+        CarriesSet:*carrySet,
+        VotedSet:*votedSet,
+        NodesSet:*nodesSet,
+        IdFrom:idFrom,
+    }
 }
 
 func NewMessageCommit(stamp Stamp, CarrySet *CarriesSet) *Message {
-	ptrMessage := new(Message)
-	ptrMessage.Stamp = stamp
-	ptrMessage.typeMessage = Commit
-	ptrMessage.CarriesSet = *CarrySet
-	return ptrMessage
+	return &Message{
+        typeMessage:Commit,
+        Stamp:stamp,
+        CarriesSet:*CarrySet,
+    }
 }
 
 func (msg *Message) GetType() int {
