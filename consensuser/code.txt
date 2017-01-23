@@ -18,17 +18,17 @@ OnVote(cons, msg):
 
     cons.voted &= msg.nodes
 
-    if cons.NotActivated():
-        cons.Activate()
+    if cons.state == Initial:
+        // broadcast anyway on the first vote from any destination
+        cons.state = MayCommit
         Broadcast(Vote(cons.carries, cons.nodes))
 
     if cons.voted == msg.nodes:
         if cons.state == MayCommit:
             cons.state = Completed
-            BroadcastCommit(cons)
-            OnCommit(cons)
-            CleanUp(cons)
-        else:
+            OnCommit(cons) // on commit must contain broadcast (see original article)
+            InitiateNextStep(cons)
+        else cons.state == CannotCommit:
             cons.state = MayCommit
             cons.voted.clear()
             Broadcast(Vote(cons.carries, cons.nodes))
