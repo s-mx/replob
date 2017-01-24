@@ -1,10 +1,12 @@
 package containers
 
+// FIXME: use simple type without struct
 type Set struct {
 	// Just info about state of replica
 	maskNodes uint64
 }
 
+// FIXME: return by value
 func NewSet(numberNodes uint32) *Set {
 	ptrSet := new(Set)
 	for i := uint32(0); i < uint32(numberNodes); i++ {
@@ -14,6 +16,7 @@ func NewSet(numberNodes uint32) *Set {
 	return ptrSet
 }
 
+// FIXME: return by value
 func NewSetFromValue(value uint32) *Set {
 	return &Set{maskNodes: 1 << value}
 }

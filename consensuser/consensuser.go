@@ -12,21 +12,19 @@ type Consensuser interface {
 }
 
 // states for consensus algorithm
-type State int
+type CalmState int
 
 const (
-	Initial      State = iota
-	ToVote             = iota
-	MayCommit          = iota
-	CannotCommit       = iota
-	Completed          = iota
+	Initial CalmState = iota
+	MayCommit
+	CannotCommit
 )
 
 type CalmConsensuser struct {
 	Broadcaster
 	Committer
 
-	State      State
+	State      CalmState
 	Id         cont.NodeId
 	myStamp    cont.Stamp
 	Stamps     []cont.Stamp
@@ -66,18 +64,21 @@ func (consensuser *CalmConsensuser) NextStamp() cont.Stamp {
 }
 
 func (consensuser *CalmConsensuser) BroadcastCommit(carriesSet *cont.CarriesSet) {
+	// FIXME: add broadcast
+	// FIXME: move commit outside broadcast
 	consensuser.CommitSet(int(consensuser.Id), *carriesSet)
 }
 
 func (consensuser *CalmConsensuser) Propose(carrier cont.Carry) {
-	votedSet := cont.NewSet(0)
+	// TODO: propose may be invoked only in Initial state
+	votedSet := cont.NewSet(0) // TODO: should be removed
 	votedSet.Insert(uint32(consensuser.Id))
 	nodesSet := consensuser.NodesInfo.GetSet()
 	consensuser.State = Initial
 
 	carrySet := cont.NewCarriesSet(carrier)
 	msg := consensuser.newVote(carrySet, &nodesSet)
-	consensuser.Broadcast(msg)
+	consensuser.Broadcast(msg) // FIXME: remove broadcast
 	consensuser.OnVote(msg)
 }
 
@@ -99,7 +100,13 @@ func (consensuser *CalmConsensuser) newVote(carrySet *cont.CarriesSet, nodesSet 
 	return cont.NewMessageVote(stamp, consensuser.curStepId, carrySet, &consensuser.VotedSet, nodesSet, consensuser.Id)
 }
 
+/*
+FIXME: use OnBroadcast method to dispatch OnVote & OnCommit
+use common logic to check for outdated message
+ */
+// FIXME: add updateMessageStamp to increase stamp
 func (consensuser *CalmConsensuser) OnVote(msg *cont.Message) {
+	// TODO: check for stepId from future
 	if consensuser.messageIsOutdated(msg) ||
 		consensuser.NodesInfo.ConsistsId(msg.IdFrom) == false ||
 		consensuser.curStepId.NotEqual(&msg.StepId) {
@@ -110,25 +117,28 @@ func (consensuser *CalmConsensuser) OnVote(msg *cont.Message) {
 		consensuser.State = CannotCommit
 	}
 
-	consensuser.mergeVotes(msg)
+	consensuser.mergeVotes(msg) // don't use msg right after this line
 	consensuser.VotedSet.AddSet(cont.NewSetFromValue(uint32(consensuser.Id)))
 	consensuser.VotedSet.AddSet(cont.NewSetFromValue(uint32(msg.IdFrom)))
+	// FIXME: use nodes group from NodesInfo instead of message
 	consensuser.VotedSet.Intersect(&msg.NodesSet)
 
 	if consensuser.State == Initial {
 		consensuser.State = MayCommit
+		// TODO: implement consensuser.Broadcast() without additional args
 		nodesSet := consensuser.NodesInfo.GetSet()
 		voteMsg := consensuser.newVote(&consensuser.CarriesSet, &nodesSet)
 		consensuser.Broadcast(voteMsg)
 	}
 
+	// FIXME: compare with current nodes group instead of message groups
 	if consensuser.VotedSet.Equal(&msg.NodesSet) {
 		if consensuser.State == MayCommit {
-			consensuser.State = Completed
 			consensuser.OnCommit()
 		} else {
 			consensuser.State = MayCommit
 			consensuser.VotedSet.Clear()
+			// TODO: use consensuser.Broadcast() as above
 			nodesSet := consensuser.NodesInfo.GetSet()
 			voteMsg := consensuser.newVote(&consensuser.CarriesSet, &nodesSet)
 			consensuser.Broadcast(voteMsg)
@@ -138,25 +148,39 @@ func (consensuser *CalmConsensuser) OnVote(msg *cont.Message) {
 
 func (consensuser *CalmConsensuser) OnCommit() {
 	consensuser.BroadcastCommit(&consensuser.CarriesSet)
+	// TODO: consensuser.PrepareNextStep()
 	consensuser.CleanUp()
 	consensuser.curStepId.Inc()
+
+	/*
+	 Refactor:
+	 0. outdated check
+	 1. commit
+	 2. broadcast commit
+	 3. prepare next step
+	  */
+
 }
 
+// TODO: rename to PrepareNextStep
 func (consensuser *CalmConsensuser) CleanUp() {
 	consensuser.CarriesSet.Clear()
-	consensuser.State = ToVote
+	consensuser.State = Initial
+	// TODO: increment current step
 	consensuser.VotedSet.Clear()
 }
 
 func (consensuser *CalmConsensuser) OnDisconnect(idFrom cont.NodeId) {
 	consensuser.NodesInfo.Erase(idFrom)
-	if consensuser.State == ToVote {
+	if consensuser.State == Initial {
 		consensuser.NodesInfo.Erase(idFrom)
 	} else {
 		set := consensuser.NodesInfo.GetSet()
 		otherSet := cont.NewSetFromValue(uint32(idFrom))
+		// FIXME: remove next stamp
 		stamp := consensuser.NextStamp()
 		votedSet := consensuser.VotedSet.Diff(otherSet)
+		// FIXME: invoke onVote synchronously without broadcast
 		msg := cont.NewMessageVote(stamp, consensuser.curStepId, &consensuser.CarriesSet, votedSet, set.Diff(otherSet), idFrom)
 		consensuser.Broadcast(msg)
 	}
