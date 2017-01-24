@@ -8,8 +8,8 @@ import (
 type Committer interface {
 	Commit(int, cont.Carry)
 	CommitSet(int, cont.CarriesSet)
-	Broadcast(cont.Carry)
-	BroadcastSet(set cont.CarriesSet)
+	//Broadcast(cont.Carry)
+	//BroadcastSet(set cont.CarriesSet)
 }
 
 type SimpleCommitter struct {

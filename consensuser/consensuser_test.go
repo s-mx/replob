@@ -11,7 +11,7 @@ func TestOneNode(t *testing.T) {
 	bc := Broadcaster(NewSimpleBroadcaster(conf.Info))
 	cm := NewSimpleCommitter(conf.Info)
 	tmp := Committer(cm)
-	cons := NewConsensuser(&bc, &tmp, conf, 0)
+	cons := NewCalmConsensuser(bc, tmp, conf, 0)
 
 	cons.Propose(*carry)
 	if cm.CheckLastCarry(0, carry) == false {
@@ -27,8 +27,8 @@ func TestTwoNodes(t *testing.T) {
 	cm := NewSimpleCommitter(conf.Info)
 	tmpBc := Broadcaster(bc)
 	tmpCm := Committer(cm)
-	cons1 := NewConsensuser(&tmpBc, &tmpCm, conf, 0)
-	cons2 := NewConsensuser(&tmpBc, &tmpCm, conf, 1)
+	cons1 := NewCalmConsensuser(tmpBc, tmpCm, conf, 0)
+	cons2 := NewCalmConsensuser(tmpBc, tmpCm, conf, 1)
 
 	var err error
 	cons1.Propose(*carry)
