@@ -27,7 +27,7 @@ func (broadcaster *SimpleBroadcaster) Broadcast(msg cont.Message) {
     }
 }
 
-func (broadcaster *SimpleBroadcaster) proceedMessage(cons *MyConsensuser) error {
+func (broadcaster *SimpleBroadcaster) proceedMessage(cons *CalmConsensuser) error {
     if broadcaster.queues[cons.Id].Size() == 0 {
         return errors.New("The queue is empty")
     }
