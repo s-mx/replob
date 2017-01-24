@@ -1,6 +1,7 @@
 package consensuser
 
 import (
+	"errors"
 	cont "github.com/s-mx/replob/containers"
 	"github.com/s-mx/replob/nodes"
 )
@@ -26,11 +27,12 @@ func (broadcaster *SimpleBroadcaster) Broadcast(msg cont.Message) {
     }
 }
 
-func (broadcaster *SimpleBroadcaster) proceedMessage(idFrom int, cons *MyConsensuser) {
-    if broadcaster.queues[idFrom].Size() == 0 {
-        return
+func (broadcaster *SimpleBroadcaster) proceedMessage(cons *MyConsensuser) error {
+    if broadcaster.queues[cons.Id].Size() == 0 {
+        return errors.New("The queue is empty")
     }
 
-    msg := broadcaster.queues[idFrom].Pop()
-    cons.OnBroadcast(msg)
+    msg := broadcaster.queues[cons.Id].Pop()
+    cons.OnVote(msg)
+	return nil
 }
