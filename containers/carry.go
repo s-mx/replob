@@ -26,6 +26,7 @@ func (carry *Carry) NotEqual(otherCarry Carry) bool {
 	return !carry.Equal(otherCarry)
 }
 
+// FIXME: use just type without members
 type CarriesSet struct {
 	carrySeq []Carry
 }

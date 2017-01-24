@@ -23,37 +23,38 @@ const (
 )
 
 type CalmConsensuser struct {
-	State       State
-	Id          cont.NodeId
-	myStamp     cont.Stamp
-	Stamps      []cont.Stamp
-	NodesInfo   nodes.NodesInfo
-	VotedSet    cont.Set
-	CarriesSet  cont.CarriesSet
-	broadcaster *Broadcaster
-	committer   *Committer
-	curStepId   cont.StepId
+	Broadcaster
+	Committer
+
+	State      State
+	Id         cont.NodeId
+	myStamp    cont.Stamp
+	Stamps     []cont.Stamp
+	NodesInfo  nodes.NodesInfo
+	VotedSet   cont.Set
+	CarriesSet cont.CarriesSet
+	curStepId  cont.StepId
 }
 
-func NewCalmConsensuser(broadcaster *Broadcaster, committer *Committer,
+func NewCalmConsensuser(broadcaster Broadcaster, committer Committer,
 	conf *MasterlessConfiguration, id cont.NodeId) *CalmConsensuser {
 	return &CalmConsensuser{
+		Broadcaster: broadcaster,
+		Committer:   committer,
 		State:       Initial,
 		Id:          id,
 		myStamp:     cont.Stamp(0),
 		Stamps:      make([]cont.Stamp, conf.GetNumberNodes()),
 		NodesInfo:   conf.Info,
-		broadcaster: broadcaster,
-		committer:   committer,
 		curStepId:   cont.StepId(0),
 	}
 }
 
-func (consensuser *CalmConsensuser) messageIsOutdated(msg cont.Message) bool {
+func (consensuser *CalmConsensuser) messageIsOutdated(msg *cont.Message) bool {
 	return consensuser.Stamps[uint32(msg.IdFrom)] >= msg.Stamp
 }
 
-func (consensuser *CalmConsensuser) updateMessageStamp(msg cont.Message) {
+func (consensuser *CalmConsensuser) updateMessageStamp(msg *cont.Message) {
 	if consensuser.messageIsOutdated(msg) == false {
 		consensuser.Stamps[int(msg.IdFrom)] = msg.Stamp
 	}
@@ -64,12 +65,8 @@ func (consensuser *CalmConsensuser) NextStamp() cont.Stamp {
 	return consensuser.myStamp
 }
 
-func (consensuser *CalmConsensuser) Broadcast(msg *cont.Message) {
-	(*consensuser.broadcaster).Broadcast(*msg)
-}
-
 func (consensuser *CalmConsensuser) BroadcastCommit(carriesSet *cont.CarriesSet) {
-	(*consensuser.committer).CommitSet(int(consensuser.Id), *carriesSet)
+	consensuser.CommitSet(int(consensuser.Id), *carriesSet)
 }
 
 func (consensuser *CalmConsensuser) Propose(carrier cont.Carry) {
@@ -81,9 +78,10 @@ func (consensuser *CalmConsensuser) Propose(carrier cont.Carry) {
 	carrySet := cont.NewCarriesSet(carrier)
 	msg := consensuser.newVote(carrySet, &nodesSet)
 	consensuser.Broadcast(msg)
-	consensuser.OnVote(*msg)
+	consensuser.OnVote(msg)
 }
 
+// checks that all nodes are agreed on sequence of carries and nodes group
 func (consensuser *CalmConsensuser) checkInvariant(msg *cont.Message) bool {
 	return consensuser.CarriesSet.Equal(&msg.CarriesSet) &&
 		consensuser.NodesInfo.NodesEqual(&msg.NodesSet)
@@ -94,23 +92,25 @@ func (consensuser *CalmConsensuser) mergeVotes(msg *cont.Message) {
 	consensuser.NodesInfo.IntersectNodes(&msg.NodesSet)
 }
 
+// FIXME: pass by value all arguments
+// FIXME: generate next stamp inside broadcaster
 func (consensuser *CalmConsensuser) newVote(carrySet *cont.CarriesSet, nodesSet *cont.Set) *cont.Message {
 	stamp := consensuser.NextStamp()
 	return cont.NewMessageVote(stamp, consensuser.curStepId, carrySet, &consensuser.VotedSet, nodesSet, consensuser.Id)
 }
 
-func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
+func (consensuser *CalmConsensuser) OnVote(msg *cont.Message) {
 	if consensuser.messageIsOutdated(msg) ||
 		consensuser.NodesInfo.ConsistsId(msg.IdFrom) == false ||
 		consensuser.curStepId.NotEqual(&msg.StepId) {
 		return
 	}
 
-	if consensuser.State == MayCommit && consensuser.checkInvariant(&msg) == false {
+	if consensuser.State == MayCommit && consensuser.checkInvariant(msg) == false {
 		consensuser.State = CannotCommit
 	}
 
-	consensuser.mergeVotes(&msg)
+	consensuser.mergeVotes(msg)
 	consensuser.VotedSet.AddSet(cont.NewSetFromValue(uint32(consensuser.Id)))
 	consensuser.VotedSet.AddSet(cont.NewSetFromValue(uint32(msg.IdFrom)))
 	consensuser.VotedSet.Intersect(&msg.NodesSet)
