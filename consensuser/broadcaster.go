@@ -15,6 +15,7 @@ type SimpleBroadcaster struct {
     queues []cont.QueueMessages
 }
 
+// TODO: consider renaming to NewTestBroadcaster
 func NewSimpleBroadcaster(info nodes.NodesInfo) *SimpleBroadcaster {
 	return &SimpleBroadcaster{info:info, queues:make([]cont.QueueMessages, info.Size())}
 }
@@ -27,12 +28,13 @@ func (broadcaster *SimpleBroadcaster) Broadcast(msg *cont.Message) {
     }
 }
 
+// FIXME: use interface instead of concrete implementation
 func (broadcaster *SimpleBroadcaster) proceedMessage(cons *CalmConsensuser) error {
     if broadcaster.queues[cons.Id].Size() == 0 {
         return errors.New("The queue is empty")
     }
 
     msg := broadcaster.queues[cons.Id].Pop()
-    cons.OnVote(&msg)
+    cons.OnVote(&msg) // FIXME: use OnBroadcast instead
 	return nil
 }

@@ -10,13 +10,11 @@ func TestOneNode(t *testing.T) {
 	carry := cont.NewCarry(1)
 	bc := Broadcaster(NewSimpleBroadcaster(conf.Info))
 	cm := NewSimpleCommitter(conf.Info)
-	tmp := Committer(cm)
-	cons := NewCalmConsensuser(bc, tmp, conf, 0)
+	cons := NewCalmConsensuser(bc, cm, conf, 0)
 
 	cons.Propose(*carry)
 	if cm.CheckLastCarry(0, carry) == false {
 		t.Error("Carry isn't committed")
-		t.Fail()
 	}
 }
 
@@ -25,10 +23,8 @@ func TestTwoNodes(t *testing.T) {
 	carry := cont.NewCarry(1)
 	bc := NewSimpleBroadcaster(conf.Info)
 	cm := NewSimpleCommitter(conf.Info)
-	tmpBc := Broadcaster(bc)
-	tmpCm := Committer(cm)
-	cons1 := NewCalmConsensuser(tmpBc, tmpCm, conf, 0)
-	cons2 := NewCalmConsensuser(tmpBc, tmpCm, conf, 1)
+	cons1 := NewCalmConsensuser(bc, cm, conf, 0)
+	cons2 := NewCalmConsensuser(bc, cm, conf, 1)
 
 	var err error
 	cons1.Propose(*carry)
@@ -39,7 +35,7 @@ func TestTwoNodes(t *testing.T) {
 
 	err = bc.proceedMessage(cons1)
 	if err != nil {
-		t.Error("abc:)")
+		t.Error("abc:)") // FIXME
 	}
 
 	if cm.CheckLastCarry(0, carry) == false ||
