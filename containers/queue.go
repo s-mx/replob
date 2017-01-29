@@ -22,12 +22,12 @@ func (queue *QueueMessages) Size() int {
 	return len(queue.arr)
 }
 
-func (queue *QueueMessages) Push(msg *Message) {
+func (queue *QueueMessages) Push(msg Message) {
 	if len(queue.arr) == cap(queue.arr) {
 		queue.reallocate()
 	}
 
-	queue.arr = append(queue.arr, *newQueueItem(*msg))
+	queue.arr = append(queue.arr, *newQueueItem(msg))
 }
 
 func (queue *QueueMessages) reallocate() {

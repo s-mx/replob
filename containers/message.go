@@ -32,24 +32,24 @@ type Message struct {
 	IdFrom		NodeId
 }
 
-func NewMessageVote(stamp Stamp, stepId StepId, carrySet *CarriesSet, votedSet *Set, nodesSet *Set, idFrom NodeId) *Message {
+func NewMessageVote(stamp Stamp, stepId StepId, carrySet CarriesSet, votedSet Set, nodesSet Set, idFrom NodeId) *Message {
 	return &Message{
         typeMessage:Vote,
         Stamp:stamp,
 		StepId:stepId,
-        CarriesSet:*carrySet,
-        VotedSet:*votedSet,
-        NodesSet:*nodesSet,
+        CarriesSet:carrySet,
+        VotedSet:votedSet,
+        NodesSet:nodesSet,
         IdFrom:idFrom,
     }
 }
 
-func NewMessageCommit(stamp Stamp, stepId StepId, CarrySet *CarriesSet) *Message {
+func NewMessageCommit(stamp Stamp, stepId StepId, CarrySet CarriesSet) *Message {
 	return &Message{
         typeMessage:Commit,
         Stamp:stamp,
 		StepId:stepId,
-        CarriesSet:*CarrySet,
+        CarriesSet:CarrySet,
     }
 }
 
@@ -59,5 +59,5 @@ func (msg *Message) GetType() int {
 
 // For testing purposes
 func (msg *Message) notEqual(otherMsg *Message) bool {
-	return msg.VotedSet.NotEqual(&otherMsg.VotedSet)
+	return msg.VotedSet.NotEqual(otherMsg.VotedSet)
 }

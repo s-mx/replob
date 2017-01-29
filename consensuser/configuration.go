@@ -1,16 +1,16 @@
 package consensuser
 
 import (
-	"github.com/s-mx/replob/nodes"
+	cont "github.com/s-mx/replob/containers"
 )
 
 type MasterlessConfiguration struct {
-	Info nodes.NodesInfo
+	Info cont.Set
 }
 
 func NewMasterlessConfiguration(numberNodes uint32) *MasterlessConfiguration {
 	conf := new(MasterlessConfiguration)
-	conf.Info = *nodes.NewNodesInfo(numberNodes)
+	conf.Info = cont.NewSet(numberNodes)
 	return conf
 }
 

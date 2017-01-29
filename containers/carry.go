@@ -26,28 +26,26 @@ func (carry *Carry) NotEqual(otherCarry Carry) bool {
 	return !carry.Equal(otherCarry)
 }
 
-// FIXME: use just type without members
-type CarriesSet struct {
-	carrySeq []Carry
-}
+type CarriesSet []Carry
+
 
 func NewCarriesSet(args ...Carry) *CarriesSet {
 	ptr := new(CarriesSet)
 	for _, val := range args {
-		ptr.carrySeq = append(ptr.carrySeq, val)
+		*ptr = append(*ptr, val)
 	}
 
-	sort.Sort(ById(ptr.carrySeq))
+	sort.Sort(ById(*ptr))
 	return ptr
 }
 
-func (set *CarriesSet) Equal(otherSet *CarriesSet) bool {
-	if len(set.carrySeq) != len(otherSet.carrySeq) {
+func (set CarriesSet) Equal(otherSet CarriesSet) bool {
+	if len(set) != len(otherSet) {
 		return false
 	}
 
-	for ind := 0; ind < len(set.carrySeq); ind++ {
-		if set.carrySeq[ind].NotEqual(otherSet.carrySeq[ind]) {
+	for ind := 0; ind < len(set); ind++ {
+		if set[ind].NotEqual(otherSet[ind]) {
 			return false
 		}
 	}
@@ -55,12 +53,12 @@ func (set *CarriesSet) Equal(otherSet *CarriesSet) bool {
 	return true
 }
 
-func (set *CarriesSet) NotEqual(otherSet *CarriesSet) bool {
+func (set CarriesSet) NotEqual(otherSet CarriesSet) bool {
 	return !set.Equal(otherSet)
 }
 
-func (set *CarriesSet) AddSet(otherSet *CarriesSet) {
-	for _, val := range otherSet.carrySeq {
+func (set *CarriesSet) AddSet(otherSet CarriesSet) {
+	for _, val := range otherSet {
 		set.Append(val)
 	}
 }
@@ -80,18 +78,18 @@ func (seq ById) Swap(i, j int) {
 }
 
 func (set *CarriesSet) Append(carry Carry) {
-	set.carrySeq = append(set.carrySeq, carry)
-	sort.Sort(ById(set.carrySeq))
+	*set = append(*set, carry)
+	sort.Sort(ById(*set))
 }
 
-func (set *CarriesSet) Size() int {
-	return len(set.carrySeq)
+func (set CarriesSet) Size() int {
+	return len(set)
 }
 
-func (set *CarriesSet) Get(ind int) Carry {
-	return set.carrySeq[ind]
+func (set CarriesSet) Get(ind int) Carry {
+	return set[ind]
 }
 
 func (set *CarriesSet) Clear() {
-	set.carrySeq = make([]Carry, 0)
+	*set = make([]Carry, 0)
 }

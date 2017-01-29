@@ -2,50 +2,55 @@ package consensuser
 
 import (
 	cont "github.com/s-mx/replob/containers"
-	"github.com/s-mx/replob/nodes"
 )
 
 type Committer interface {
-	Commit(int, cont.Carry)
-	CommitSet(int, cont.CarriesSet)
+	Commit(cont.Carry)
+	CommitSet(cont.CarriesSet)
 	//Broadcast(cont.Carry)
 	//BroadcastSet(set cont.CarriesSet)
 }
 
-type SimpleCommitter struct {
+type testCommitHelper struct {
 	Carries [][]cont.Carry
 }
 
-func NewSimpleCommitter(info nodes.NodesInfo) *SimpleCommitter {
-	return &SimpleCommitter{
-		Carries:make([][]cont.Carry, info.Size()),
+func newTestCommitHelper(numberNodes int) *testCommitHelper {
+	return &testCommitHelper{
+		Carries:make([][]cont.Carry, numberNodes),
 	}
 }
 
-func (committer *SimpleCommitter) Commit(id int, carry cont.Carry) {
-	committer.Carries[id] = append(committer.Carries[id], carry)
+type TestLocalCommiter struct {
+	idNode  cont.NodeId
+	ptrAllCarries *testCommitHelper
 }
 
-func (committer *SimpleCommitter) CommitSet(id int, set cont.CarriesSet) {
+func NewTestLocalCommitter(idNode cont.NodeId, ptrHellper *testCommitHelper) *TestLocalCommiter {
+	return &TestLocalCommiter{
+		idNode:idNode,
+		ptrAllCarries:ptrHellper,
+	}
+}
+
+func (committer *TestLocalCommiter) Commit(carry cont.Carry) {
+	curCarries := &committer.ptrAllCarries.Carries[committer.idNode]
+	*curCarries = append(*curCarries, carry)
+}
+
+func (committer *TestLocalCommiter) CommitSet(set cont.CarriesSet) {
 	sizeSet := set.Size()
 	for ind := 0; ind < sizeSet; ind++ {
-		committer.Commit(id, set.Get(ind))
+		committer.Commit(set.Get(ind))
 	}
 }
 
-func (committer *SimpleCommitter) Broadcast(carry cont.Carry) {
-	// пока что оставим так
-}
-
-func (committer *SimpleCommitter) BroadcastSet(carriesSet cont.CarriesSet) {
-	// пока что оставим так
-}
-
-func (committer *SimpleCommitter) CheckLastCarry(id int, carry *cont.Carry) bool {
-	lastInd := len(committer.Carries[id]) - 1
+func (committer *TestLocalCommiter) CheckLastCarry(id int, carry cont.Carry) bool {
+	carries := committer.ptrAllCarries.Carries[id]
+	lastInd := len(carries) - 1
 	if lastInd < 0 {
 		return false
 	}
 
-	return committer.Carries[id][lastInd].Equal(*carry)
+	return carries[lastInd].Equal(carry)
 }

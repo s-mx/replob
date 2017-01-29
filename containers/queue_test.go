@@ -17,20 +17,21 @@ func TestPushPop(t *testing.T) {
 	nodesSet := NewSet(10)
 
 	for ind := 0; ind < 10; ind++ {
-		messages = append(messages, *NewMessageVote(Stamp(ind), carriesSet, votedSet, nodesSet))
+		messages = append(messages, *NewMessageVote(Stamp(ind), 0, *carriesSet, votedSet, nodesSet, NodeId(ind)))
 		votedSet.Insert(uint32(ind))
-		queue.Push(&messages[ind], uint32(ind))
+		queue.Push(messages[ind])
 		if queue.Size() != ind+1 {
 			t.Error("Size of queue after push is wrong")
 		}
 	}
 
 	for ind := 9; ind >= 0; ind-- {
-		msg, id := queue.Pop()
+		msg:= queue.Pop()
+		IdFrom := uint32(msg.IdFrom)
 
 		condition1 := queue.Size() != ind
 		condition2 := msg.notEqual(&messages[ind])
-		condition3 := id != uint32(9-ind)
+		condition3 := IdFrom != uint32(9-ind)
 
 		if condition1 || condition2 || condition3 {
 			if condition1 {
@@ -38,11 +39,11 @@ func TestPushPop(t *testing.T) {
 			}
 
 			if condition2 {
-				t.Errorf("Wrong message after pop")
+				t.Error("Wrong message after pop")
 			}
 
 			if condition3 {
-				t.Errorf("Wrong id after pop: %d given, %d expected", id, 9-ind)
+				t.Errorf("Wrong id after pop: %d given, %d expected", IdFrom, 9-ind)
 			}
 		}
 	}
