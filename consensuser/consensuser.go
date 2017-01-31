@@ -114,6 +114,7 @@ func (consensuser *CalmConsensuser) OnBroadcast(msg cont.Message) {
 	if consensuser.curStepId < msg.StepId {
 		// TODO: use ConsensusController.LostSteps(...)
 		consensuser.PrepareFutureStep(msg.StepId) // TODO: need to reinitialize consensuser state (group membership changes)
+		// FIXME: change the state to stop receiving any messages: just log & return
 	}
 
 	if consensuser.messageIsOutdated(msg) ||
@@ -139,6 +140,7 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 	consensuser.VotedSet.AddSet(cont.NewSetFromValue(uint32(msg.IdFrom)))
 	consensuser.mergeVotes(msg) // don't use msg right after this line
 	consensuser.VotedSet.Intersect(consensuser.Nodes)
+	// TODO: check for majority by comparing with initial number of nodes in Initial state, log it and stop processing
 
 	if consensuser.State == Initial {
 		consensuser.State = MayCommit
@@ -187,6 +189,12 @@ func (consensuser *CalmConsensuser) PrepareFutureStep(step cont.StepId) {
 }
 
 func (consensuser *CalmConsensuser) OnDisconnect(idFrom cont.NodeId) {
+	/*
+	FIXME:
+	algorithm:
+	1. nodes must be updated in OnVote only
+	2. votes must not be changed (may be updated only in OnVote)
+	 */
 	consensuser.Nodes.Erase(idFrom)
 	if consensuser.State != Initial {
 		otherSet := cont.NewSetFromValue(uint32(idFrom))
