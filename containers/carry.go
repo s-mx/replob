@@ -28,7 +28,7 @@ func (carry *Carry) NotEqual(otherCarry Carry) bool {
 
 type CarriesSet []Carry
 
-
+// FIXME: return by value
 func NewCarriesSet(args ...Carry) *CarriesSet {
 	ptr := new(CarriesSet)
 	for _, val := range args {

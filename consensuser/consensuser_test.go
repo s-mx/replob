@@ -48,3 +48,10 @@ func TestTwoNodes(t *testing.T) {
 		t.Error("Safety is broken")
 	}
 }
+
+/*
+Tests TODO:
+1. Check commit messages for 2 nodes.
+2. 3 nodes.
+3. Random tests.
+ */
