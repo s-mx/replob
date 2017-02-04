@@ -4,10 +4,22 @@ import (
 	cont "github.com/s-mx/replob/containers"
 )
 
+// FIXME: OnBroadcast->OnReceive
+// FIXME: use separated interface for OnReceive to filter incoming messages (drop outdated)
 type Consensuser interface {
 	Propose(cont.Carry)
 	OnBroadcast(cont.Message)
 	OnDisconnect(cont.NodeId)
+}
+
+type ConsensusController interface {
+	Stop()
+	/*
+	on LostSteps the following actions must be applied:
+	1. Update commits based on currentStepId and latestStepId
+	2. Add current node to the group
+	 */
+	LostSteps(currentStepId cont.StepId, latestStepId cont.StepId)
 }
 
 // states for consensus algorithm
@@ -25,8 +37,8 @@ type CalmConsensuser struct {
 
 	State      CalmState
 	Id         cont.NodeId
-	myStamp    cont.Stamp
-	Stamps     []cont.Stamp
+	myStamp    cont.Stamp // TODO: move to Broadcaster implementation
+	Stamps     []cont.Stamp // TODO: move to Receiver implementation
 	Nodes      cont.Set
 	VotedSet   cont.Set
 	CarriesSet cont.CarriesSet
@@ -72,15 +84,12 @@ func (consensuser *CalmConsensuser) Broadcast() {
 
 func (consensuser *CalmConsensuser) Propose(carrier cont.Carry) {
 	if consensuser.State != Initial {
-		return
+		return // FIXME: Log.Fatal
 	}
 
-	nodesSet := consensuser.Nodes
-	consensuser.State = Initial
-
 	carrySet := cont.NewCarriesSet(carrier)
-	msg := consensuser.newVote(*carrySet, nodesSet)
-	consensuser.OnVote(*msg)
+	msg := consensuser.newVote(*carrySet, consensuser.Nodes)
+	consensuser.OnVote(*msg) // FIXME: refactor to use single line
 }
 
 // checks that all nodes are agreed on sequence of carries and nodes group
@@ -95,6 +104,7 @@ func (consensuser *CalmConsensuser) mergeVotes(msg cont.Message) {
 }
 
 // FIXME: generate next stamp inside broadcaster
+// FIXME: use return by value
 func (consensuser *CalmConsensuser) newVote(carrySet cont.CarriesSet, nodesSet cont.Set) *cont.Message {
 	stamp := consensuser.NextStamp()
 	return cont.NewMessageVote(stamp, consensuser.curStepId, carrySet, consensuser.VotedSet, nodesSet, consensuser.Id)
@@ -102,7 +112,9 @@ func (consensuser *CalmConsensuser) newVote(carrySet cont.CarriesSet, nodesSet c
 
 func (consensuser *CalmConsensuser) OnBroadcast(msg cont.Message) {
 	if consensuser.curStepId < msg.StepId {
-		consensuser.PrepareFutureStep(msg.StepId)
+		// TODO: use ConsensusController.LostSteps(...)
+		consensuser.PrepareFutureStep(msg.StepId) // TODO: need to reinitialize consensuser state (group membership changes)
+		// FIXME: change the state to stop receiving any messages: just log & return
 	}
 
 	if consensuser.messageIsOutdated(msg) ||
@@ -115,7 +127,7 @@ func (consensuser *CalmConsensuser) OnBroadcast(msg cont.Message) {
 	if msg.GetType() == cont.Vote {
 		consensuser.OnVote(msg)
 	} else if msg.GetType() == cont.Commit {
-		consensuser.OnVote(msg)
+		consensuser.OnVote(msg) // FIXME: use OnCommit
 	}
 }
 
@@ -124,10 +136,11 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 		consensuser.State = CannotCommit
 	}
 
-	consensuser.mergeVotes(msg) // don't use msg right after this line
 	consensuser.VotedSet.AddSet(cont.NewSetFromValue(uint32(consensuser.Id)))
 	consensuser.VotedSet.AddSet(cont.NewSetFromValue(uint32(msg.IdFrom)))
+	consensuser.mergeVotes(msg) // don't use msg right after this line
 	consensuser.VotedSet.Intersect(consensuser.Nodes)
+	// TODO: check for majority by comparing with initial number of nodes in Initial state, log it and stop processing
 
 	if consensuser.State == Initial {
 		consensuser.State = MayCommit
@@ -176,11 +189,17 @@ func (consensuser *CalmConsensuser) PrepareFutureStep(step cont.StepId) {
 }
 
 func (consensuser *CalmConsensuser) OnDisconnect(idFrom cont.NodeId) {
+	/*
+	FIXME:
+	algorithm:
+	1. nodes must be updated in OnVote only
+	2. votes must not be changed (may be updated only in OnVote)
+	 */
 	consensuser.Nodes.Erase(idFrom)
 	if consensuser.State != Initial {
 		otherSet := cont.NewSetFromValue(uint32(idFrom))
 		votedSet := consensuser.VotedSet.Diff(otherSet)
-		msg := cont.NewMessageVote(consensuser.myStamp, consensuser.curStepId,
+		msg := cont.NewMessageVote(consensuser.myStamp, consensuser.curStepId, // FIXME: stamp and stepId may be equal to zero here
 								   consensuser.CarriesSet, votedSet, consensuser.Nodes, consensuser.Id)
 		consensuser.OnVote(*msg)
 	}
