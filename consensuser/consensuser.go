@@ -107,10 +107,9 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 	consensuser.mergeVotes(msg) // don't use msg right after this line
 	consensuser.VotedSet.Intersect(consensuser.CurrentNodes)
 	if consensuser.Nodes.Size() > consensuser.CurrentNodes.Size() * 2 {
-		log.Println("current set of nodes of %d consensuser become less than majority", consensuser.Id)
+		log.Printf("current set of nodes of %d consensuser become less than majority", consensuser.Id)
 		(*consensuser.dispatcher).Stop()
 	}
-	// TODO: check for majority by comparing with initial number of nodes in Initial state, log it and stop processing
 
 	if consensuser.State == Initial {
 		consensuser.State = MayCommit
