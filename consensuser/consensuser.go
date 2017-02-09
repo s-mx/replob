@@ -62,7 +62,7 @@ func (consensuser *CalmConsensuser) Broadcast() {
 }
 
 func (consensuser *CalmConsensuser) newVote(carry cont.Carry) cont.Message {
-	return *cont.NewMessageVote(*cont.NewCarriesSet(carry), consensuser.VotedSet, consensuser.CurrentNodes)
+	return *cont.NewMessageVote(cont.NewCarriesSet(carry), consensuser.VotedSet, consensuser.CurrentNodes)
 }
 
 // checks that all nodes are agreed on sequence of carries and nodes group

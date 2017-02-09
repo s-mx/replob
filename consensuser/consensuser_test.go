@@ -3,32 +3,33 @@ package consensuser
 import (
 	cont "github.com/s-mx/replob/containers"
 	"testing"
+	"math/rand"
 )
 
 func TestOneNode(t *testing.T) {
 	conf := NewMasterlessConfiguration(1)
-	carry := cont.NewCarry(1)
-	LocalDispatcers := NewLocalDispatchers(1, conf)
+	carries := cont.NewCarries(1)
+	LocalDispatcers := NewLocalDispatchers(1, conf, t)
 	dsp := Dispatcher(LocalDispatcers[0])
 
-	helper := newTestCommitHelper(1)
+	helper := newTestCommitHelper(1, carries)
 	cm := NewTestLocalCommitter(0, helper)
 	cons := NewCalmConsensuser(&dsp, Committer(cm), conf, 0)
 
-	cons.Propose(*carry)
-	if cm.CheckLastCarry(0, *carry) == false {
+	cons.Propose(carries[0])
+	if helper.CheckSafety() == false {
 		t.Error("Carry isn't committed")
 	}
 }
 
 func TestTwoNodes(t *testing.T) {
 	conf := NewMasterlessConfiguration(2)
-	carry := cont.NewCarry(1)
-	LocalDispatchers := NewLocalDispatchers(2, conf)
+	carries := cont.NewCarries(1, 2)
+	LocalDispatchers := NewLocalDispatchers(2, conf, t)
 	dsp1 := Dispatcher(LocalDispatchers[0])
 	dsp2 := Dispatcher(LocalDispatchers[1])
 
-	helper := newTestCommitHelper(2)
+	helper := newTestCommitHelper(2, carries)
 	cm1 := NewTestLocalCommitter(0, helper)
 	cm2 := NewTestLocalCommitter(1, helper)
 	cons1 := NewCalmConsensuser(&dsp1, Committer(cm1), conf, 0)
@@ -36,20 +37,17 @@ func TestTwoNodes(t *testing.T) {
 	cons2 := NewCalmConsensuser(&dsp2, Committer(cm2), conf, 1)
 	LocalDispatchers[1].cons = cons2
 
-	var err error
-	cons1.Propose(*carry)
-	err = LocalDispatchers[0].proceedFirstMessage(1)
-	if err != nil {
-		t.Error("Broadcast isn't correct")
-	}
+	cons1.Propose(carries[0])
+	LocalDispatchers[0].proceedFirstMessage(1)
+	LocalDispatchers[1].proceedFirstMessage(0)
+	LocalDispatchers[0].ClearQueues()
+	LocalDispatchers[1].ClearQueues()
 
-	err = LocalDispatchers[1].proceedFirstMessage(0)
-	if err != nil {
-		t.Error("Queue of messages doesn't contains the element")
-	}
+	cons2.Propose(carries[1])
+	LocalDispatchers[1].proceedFirstMessage(0)
+	LocalDispatchers[0].proceedFirstMessage(1)
 
-	if cm1.CheckLastCarry(0, *carry) == false ||
-	   cm2.CheckLastCarry(1, *carry) == false {
+	if helper.CheckSafety() == false {
 		t.Error("Safety is broken")
 	}
 }
@@ -57,13 +55,13 @@ func TestTwoNodes(t *testing.T) {
 
 func TestThreeNodes(t *testing.T) {
 	conf := NewMasterlessConfiguration(3)
-	carry := cont.NewCarry(1)
-	LocalBroadcasters := NewLocalDispatchers(3, conf)
+	carries := cont.NewCarries(1, 2)
+	LocalBroadcasters := NewLocalDispatchers(3, conf, t)
 	dsp1 := Dispatcher(LocalBroadcasters[0])
 	dsp2 := Dispatcher(LocalBroadcasters[1])
 	dsp3 := Dispatcher(LocalBroadcasters[2])
 
-	helper := newTestCommitHelper(3)
+	helper := newTestCommitHelper(3, carries)
 	cm1 := NewTestLocalCommitter(0, helper)
 	cm2 := NewTestLocalCommitter(1, helper)
 	cm3 := NewTestLocalCommitter(2, helper)
@@ -75,27 +73,109 @@ func TestThreeNodes(t *testing.T) {
 	LocalBroadcasters[1].cons = cons2
 	LocalBroadcasters[2].cons = cons3
 
-	var err error
-	cons1.Propose(*carry)
-	err = LocalBroadcasters[0].proceedFirstMessage(1)
-	if err != nil {
+	cons1.Propose(carries[0])
+	LocalBroadcasters[0].proceedFirstMessage(1)
+	LocalBroadcasters[0].proceedFirstMessage(2)
+	LocalBroadcasters[1].proceedFirstMessage(0)
+	LocalBroadcasters[1].proceedFirstMessage(2)
+	LocalBroadcasters[2].proceedFirstMessage(1)
+	LocalBroadcasters[2].proceedFirstMessage(0)
+	LocalBroadcasters[2].proceedFirstMessage(0)
 
+	LocalBroadcasters[0].ClearQueues()
+	LocalBroadcasters[1].ClearQueues()
+	LocalBroadcasters[2].ClearQueues()
+
+	cons2.Propose(carries[1])
+	LocalBroadcasters[1].proceedFirstMessage(0)
+	LocalBroadcasters[1].proceedFirstMessage(2)
+	LocalBroadcasters[0].proceedFirstMessage(1)
+	LocalBroadcasters[0].proceedFirstMessage(2)
+	LocalBroadcasters[2].proceedFirstMessage(1)
+	LocalBroadcasters[2].proceedFirstMessage(0)
+
+	if helper.CheckSafety() == false {
+		t.Error("Carry isn't committed")
+	}
+}
+
+func RunRandomTest(numberNodes int, numberCarries int, t *testing.T) {
+	Source := rand.NewSource(42)
+	generator := rand.New(Source)
+
+	conf := NewMasterlessConfiguration(uint32(numberNodes))
+	carries := cont.NewCarriesN(numberCarries)
+	LocalBroadcasters := NewLocalDispatchers(numberNodes, conf, t)
+
+	helper := newTestCommitHelper(numberNodes, carries)
+	consensusers := []*CalmConsensuser{}
+	for ind := 0; ind < numberNodes; ind++ {
+		cm := NewTestLocalCommitter(cont.NodeId(ind), helper)
+		dsp := Dispatcher(LocalBroadcasters[ind])
+		cons := NewCalmConsensuser(&dsp, Committer(cm), conf, cont.NodeId(ind))
+		LocalBroadcasters[ind].cons = cons
+		consensusers = append(consensusers, cons)
 	}
 
-	err = LocalBroadcasters[0].proceedFirstMessage(2)
-	if err != nil {
+	consensusers[0].Propose(carries[0])
 
+	numberProposedCarries := 1
+	for numberProposedCarries != numberCarries {
+		for true {
+			flag := false
+			for ind := 0; ind < numberNodes; ind++ {
+				if LocalBroadcasters[ind].proceedRandomMessage(generator) == true {
+					flag = true
+				}
+			}
+
+			if flag == false {
+				break
+			}
+		}
+
+
+		nodeId := generator.Intn(numberNodes)
+		consensusers[nodeId].Propose(carries[numberProposedCarries])
+		numberProposedCarries++
 	}
 
-	err = LocalBroadcasters[1].proceedFirstMessage(2)
-	if err != nil {
+	for true {
+		flag := false
+		for ind := 0; ind < numberNodes; ind++ {
+			if LocalBroadcasters[ind].proceedRandomMessage(generator) == true {
+				flag = true
+			}
+		}
 
+		if flag == false {
+			break
+		}
 	}
 
-	err = LocalBroadcasters[2].proceedFirstMessage(1)
-	if err != nil {
-
+	if helper.CheckSafety() == false {
+		t.Error("Carry isn't committed")
 	}
+}
+
+func TestRandomMessages2(t *testing.T) {
+	RunRandomTest(2, 1, t)
+}
+
+func TestRandomMessages5(t *testing.T) {
+	RunRandomTest(5, 10, t)
+}
+
+func TestRandomMessages5_100(t *testing.T) {
+	RunRandomTest(5, 100, t)
+}
+
+func TestRandomMessages10_10(t *testing.T) {
+	RunRandomTest(10, 10, t)
+}
+
+func TestRandomMessages10_100(t *testing.T) {
+	RunRandomTest(10, 100, t)
 }
 
 /*

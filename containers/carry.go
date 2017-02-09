@@ -10,12 +10,30 @@ type Carry struct {
 	value Payload // payload
 }
 
-func NewCarry(val int) *Carry {
+func NewCarries(args ...int) []Carry {
+	result := make([]Carry, len(args))
+	for ind := 0; ind < len(args); ind++ {
+		result[ind] = NewCarry(args[ind])
+	}
+
+	return result
+}
+
+func NewCarriesN(number int) []Carry {
+	result := make([]Carry, number)
+	for ind := 0; ind < number; ind++ {
+		result[ind] = NewCarry(number + 1)
+	}
+
+	return result
+}
+
+func NewCarry(val int) Carry {
 	ptr := new(Carry)
 	ptr.Id = countId
 	countId++
 	ptr.value = Payload(val)
-	return ptr
+	return *ptr
 }
 
 func (carry *Carry) Equal(otherCarry Carry) bool {
@@ -28,15 +46,14 @@ func (carry *Carry) NotEqual(otherCarry Carry) bool {
 
 type CarriesSet []Carry
 
-// FIXME: return by value
-func NewCarriesSet(args ...Carry) *CarriesSet {
+func NewCarriesSet(args ...Carry) CarriesSet {
 	ptr := new(CarriesSet)
 	for _, val := range args {
 		*ptr = append(*ptr, val)
 	}
 
 	sort.Sort(ById(*ptr))
-	return ptr
+	return *ptr
 }
 
 func (set CarriesSet) Equal(otherSet CarriesSet) bool {
@@ -77,7 +94,21 @@ func (seq ById) Swap(i, j int) {
 	seq[i], seq[j] = seq[j], seq[i]
 }
 
+func (set *CarriesSet) Consist(carry Carry) bool {
+	for ind := 0; ind < set.Size(); ind++ {
+		if (*set)[ind].Equal(carry) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (set *CarriesSet) Append(carry Carry) {
+	if set.Consist(carry) {
+		return
+	}
+
 	*set = append(*set, carry)
 	sort.Sort(ById(*set))
 }

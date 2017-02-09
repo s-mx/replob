@@ -11,12 +11,30 @@ type Committer interface {
 
 type testCommitHelper struct {
 	Carries [][]cont.Carry
+	DesiredCarries []cont.Carry
 }
 
-func newTestCommitHelper(numberNodes int) *testCommitHelper {
+func newTestCommitHelper(numberNodes int, desiredCarries []cont.Carry) *testCommitHelper {
 	return &testCommitHelper{
 		Carries:make([][]cont.Carry, numberNodes),
+		DesiredCarries:desiredCarries,
 	}
+}
+
+func (helper *testCommitHelper) CheckSafety() bool {
+	for indNode := 0; indNode < len(helper.Carries); indNode++ {
+		if len(helper.Carries[indNode]) != len(helper.DesiredCarries) {
+			return false
+		}
+
+		for indCarry := 0; indCarry < len(helper.Carries[indNode]); indCarry++ {
+			if helper.Carries[indNode][indCarry].NotEqual(helper.DesiredCarries[indCarry]) {
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 type TestLocalCommiter struct {

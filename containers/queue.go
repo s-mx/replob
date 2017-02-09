@@ -45,3 +45,11 @@ func (queue *QueueMessages) Pop() Message {
 	queue.arr = append(queue.arr[:0], queue.arr[1:]...)
 	return firstElem.msg
 }
+
+func (queue *QueueMessages) Swap(i, j int) {
+	queue.arr[i], queue.arr[j] = queue.arr[j], queue.arr[i]
+}
+
+func (queue *QueueMessages) Clear() {
+	queue.arr = make([]queueItem, 0)
+}
