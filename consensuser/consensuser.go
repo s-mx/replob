@@ -34,8 +34,8 @@ const (
 
 type CalmConsensuser struct {
 	Committer
+	Dispatcher
 
-	dispatcher   *Dispatcher
 	State        CalmState
 	Id           cont.NodeId // Только для логирования.
 	Nodes		 cont.Set
@@ -44,11 +44,11 @@ type CalmConsensuser struct {
 	CarriesSet   cont.CarriesSet
 }
 
-func NewCalmConsensuser(dispatcher *Dispatcher, committer Committer,
+func NewCalmConsensuser(dispatcher Dispatcher, committer Committer,
 	conf Configuration, id cont.NodeId) *CalmConsensuser {
 	return &CalmConsensuser{
-		dispatcher:   dispatcher,
 		Committer:    committer,
+		Dispatcher:   dispatcher,
 		State:        Initial,
 		Id:           id,
 		Nodes:		  conf.Info,
@@ -58,7 +58,7 @@ func NewCalmConsensuser(dispatcher *Dispatcher, committer Committer,
 
 func (consensuser *CalmConsensuser) Broadcast() {
 	msg := cont.NewMessageVote(consensuser.CarriesSet, consensuser.VotedSet, consensuser.CurrentNodes)
-	(*consensuser.dispatcher).Broadcast(*msg) // FIXME
+	consensuser.Dispatcher.Broadcast(*msg) // FIXME
 }
 
 func (consensuser *CalmConsensuser) newVote(carry cont.Carry) cont.Message {
@@ -108,7 +108,7 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 	consensuser.VotedSet.Intersect(consensuser.CurrentNodes)
 	if consensuser.Nodes.Size() > consensuser.CurrentNodes.Size() * 2 {
 		log.Printf("current set of nodes of %d consensuser become less than majority", consensuser.Id)
-		(*consensuser.dispatcher).Stop()
+		consensuser.Stop()
 	}
 
 	if consensuser.State == Initial {
@@ -129,7 +129,7 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 
 func (consensuser *CalmConsensuser) OnCommit() {
 	consensuser.Committer.CommitSet(consensuser.CarriesSet)
-	(*consensuser.dispatcher).Broadcast(consensuser.newCommitMessage()) // FIXME
+	consensuser.Dispatcher.Broadcast(consensuser.newCommitMessage()) // FIXME
 	consensuser.PrepareNextStep()
 }
 
@@ -146,7 +146,7 @@ func (consensuser *CalmConsensuser) CleanUp() {
 
 func (consensuser *CalmConsensuser) PrepareNextStep() {
 	consensuser.CleanUp()
-	(*consensuser.dispatcher).IncStep() // FIXME
+	consensuser.IncStep() // FIXME
 }
 
 func (consensuser *CalmConsensuser) OnDisconnect(idFrom cont.NodeId) {
