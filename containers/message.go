@@ -32,23 +32,18 @@ type Message struct {
 	IdFrom		NodeId
 }
 
-func NewMessageVote(stamp Stamp, stepId StepId, carrySet CarriesSet, votedSet Set, nodesSet Set, idFrom NodeId) *Message {
+func NewMessageVote(carrySet CarriesSet, votedSet Set, nodesSet Set) *Message {
 	return &Message{
         typeMessage:Vote,
-        Stamp:stamp,
-		StepId:stepId,
         CarriesSet:carrySet,
         VotedSet:votedSet,
         NodesSet:nodesSet,
-        IdFrom:idFrom,
     }
 }
 
-func NewMessageCommit(stamp Stamp, stepId StepId, CarrySet CarriesSet) *Message {
+func NewMessageCommit(CarrySet CarriesSet) *Message {
 	return &Message{
         typeMessage:Commit,
-        Stamp:stamp,
-		StepId:stepId,
         CarriesSet:CarrySet,
     }
 }

@@ -8,6 +8,7 @@ import (
 type Dispatcher interface {
 	Broadcast(message cont.Message)
 	IncStep()
+	Stop()
 }
 
 type TestLocalDispatcher struct {
@@ -100,6 +101,10 @@ func (dispatcher *TestLocalDispatcher) OnReceive(message cont.Message) {
 
 	dispatcher.updateMessageStamp(message)
 	dispatcher.cons.OnBroadcast(message)
+}
+
+func (dispatcher *TestLocalDispatcher) Stop() {
+	dispatcher.isStopReceiving = true
 }
 
 func (dispatcher *TestLocalDispatcher) proceedFirstMessage(toId int) error {

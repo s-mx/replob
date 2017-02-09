@@ -35,32 +35,34 @@ const (
 type CalmConsensuser struct {
 	Committer
 
-	dispatcher *Dispatcher
-	State      CalmState
-	Id         cont.NodeId // Только для логирования.
-	Nodes      cont.Set
-	VotedSet   cont.Set
-	CarriesSet cont.CarriesSet
+	dispatcher   *Dispatcher
+	State        CalmState
+	Id           cont.NodeId // Только для логирования.
+	Nodes		 cont.Set
+	CurrentNodes cont.Set
+	VotedSet     cont.Set
+	CarriesSet   cont.CarriesSet
 }
 
 func NewCalmConsensuser(dispatcher *Dispatcher, committer Committer,
 	conf Configuration, id cont.NodeId) *CalmConsensuser {
 	return &CalmConsensuser{
-		dispatcher: dispatcher,
-		Committer:   committer,
-		State:       Initial,
-		Id:          id,
-		Nodes:       conf.Info,
+		dispatcher:   dispatcher,
+		Committer:    committer,
+		State:        Initial,
+		Id:           id,
+		Nodes:		  conf.Info,
+		CurrentNodes: conf.Info,
 	}
 }
 
 func (consensuser *CalmConsensuser) Broadcast() {
-	msg := cont.NewMessageVote(consensuser.CarriesSet, consensuser.VotedSet, consensuser.Nodes)
+	msg := cont.NewMessageVote(consensuser.CarriesSet, consensuser.VotedSet, consensuser.CurrentNodes)
 	(*consensuser.dispatcher).Broadcast(*msg) // FIXME
 }
 
 func (consensuser *CalmConsensuser) newVote(carry cont.Carry) cont.Message {
-	return *cont.NewMessageVote(*cont.NewCarriesSet(carry), consensuser.VotedSet, consensuser.Nodes)
+	return *cont.NewMessageVote(*cont.NewCarriesSet(carry), consensuser.VotedSet, consensuser.CurrentNodes)
 }
 
 // checks that all nodes are agreed on sequence of carries and nodes group
@@ -74,12 +76,12 @@ func (consensuser *CalmConsensuser) Propose(carry cont.Carry) {
 
 func (consensuser *CalmConsensuser) checkInvariant(msg cont.Message) bool {
 	return consensuser.CarriesSet.Equal(msg.CarriesSet) &&
-		   consensuser.Nodes.Equal(msg.NodesSet)
+		   consensuser.CurrentNodes.Equal(msg.NodesSet)
 }
 
 func (consensuser *CalmConsensuser) OnBroadcast(msg cont.Message) {
 	// Думаю, это чекать нужно здесь.
-	if consensuser.Nodes.Consist(uint32(msg.IdFrom)) == false {
+	if consensuser.CurrentNodes.Consist(uint32(msg.IdFrom)) == false {
 		return
 	}
 
@@ -92,7 +94,7 @@ func (consensuser *CalmConsensuser) OnBroadcast(msg cont.Message) {
 
 func (consensuser *CalmConsensuser) mergeVotes(msg cont.Message) {
 	consensuser.CarriesSet.AddSet(msg.CarriesSet)
-	consensuser.Nodes.Intersect(msg.NodesSet)
+	consensuser.CurrentNodes.Intersect(msg.NodesSet)
 }
 
 func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
@@ -103,7 +105,11 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 	consensuser.VotedSet.AddSet(cont.NewSetFromValue(uint32(consensuser.Id)))
 	consensuser.VotedSet.AddSet(cont.NewSetFromValue(uint32(msg.IdFrom)))
 	consensuser.mergeVotes(msg) // don't use msg right after this line
-	consensuser.VotedSet.Intersect(consensuser.Nodes)
+	consensuser.VotedSet.Intersect(consensuser.CurrentNodes)
+	if consensuser.Nodes.Size() > consensuser.CurrentNodes.Size() * 2 {
+		log.Println("current set of nodes of %d consensuser become less than majority", consensuser.Id)
+		(*consensuser.dispatcher).Stop()
+	}
 	// TODO: check for majority by comparing with initial number of nodes in Initial state, log it and stop processing
 
 	if consensuser.State == Initial {
@@ -111,7 +117,7 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 		consensuser.Broadcast()
 	}
 
-	if consensuser.VotedSet.Equal(consensuser.Nodes) {
+	if consensuser.VotedSet.Equal(consensuser.CurrentNodes) {
 		if consensuser.State == MayCommit {
 			consensuser.OnCommit()
 		} else {
@@ -133,8 +139,9 @@ func (consensuser *CalmConsensuser) newCommitMessage() cont.Message {
 }
 
 func (consensuser *CalmConsensuser) CleanUp() {
-	consensuser.CarriesSet.Clear()
 	consensuser.State = Initial
+	consensuser.Nodes = consensuser.CurrentNodes
+	consensuser.CarriesSet.Clear()
 	consensuser.VotedSet.Clear()
 }
 
@@ -151,5 +158,5 @@ func (consensuser *CalmConsensuser) OnDisconnect(idFrom cont.NodeId) {
 	disconnectedSet := cont.NewSetFromValue(uint32(idFrom))
 	consensuser.OnVote(*cont.NewMessageVote(consensuser.CarriesSet,
 											consensuser.VotedSet.Diff(disconnectedSet),
-											consensuser.Nodes.Diff(disconnectedSet)))
+											consensuser.CurrentNodes.Diff(disconnectedSet)))
 }
