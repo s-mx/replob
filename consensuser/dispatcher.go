@@ -2,7 +2,8 @@ package consensuser
 
 import (
 	cont "github.com/s-mx/replob/containers"
-	"errors"
+	"testing"
+	"math/rand"
 )
 
 type Dispatcher interface {
@@ -21,12 +22,14 @@ type TestLocalDispatcher struct {
 	queues			[]cont.QueueMessages
 	dispatchers     []*TestLocalDispatcher
 	isStopReceiving	bool
+
+	t 				*testing.T
 }
 
-func NewLocalDispatchers(numberDispatchers int, conf Configuration) []*TestLocalDispatcher {
+func NewLocalDispatchers(numberDispatchers int, conf Configuration, t *testing.T) []*TestLocalDispatcher {
 	arrPtr := make([]*TestLocalDispatcher, numberDispatchers)
 	for i := 0; i < numberDispatchers; i++ {
-		arrPtr[i] = NewLocalDispatcher(cont.NodeId(i), conf, numberDispatchers)
+		arrPtr[i] = NewLocalDispatcher(cont.NodeId(i), conf, numberDispatchers, t)
 		for j := 0; j < i; j++ {
 			arrPtr[i].dispatchers[j] = arrPtr[j]
 			arrPtr[j].dispatchers[i] = arrPtr[i]
@@ -36,7 +39,7 @@ func NewLocalDispatchers(numberDispatchers int, conf Configuration) []*TestLocal
 	return arrPtr
 }
 
-func NewLocalDispatcher(id cont.NodeId, conf Configuration, numberDispatchers int ) *TestLocalDispatcher {
+func NewLocalDispatcher(id cont.NodeId, conf Configuration, numberDispatchers int, t *testing.T) *TestLocalDispatcher {
 	return &TestLocalDispatcher{
 		nodeId:id,
 		conf:conf,
@@ -46,6 +49,7 @@ func NewLocalDispatcher(id cont.NodeId, conf Configuration, numberDispatchers in
 		queues:make([]cont.QueueMessages, numberDispatchers),
 		dispatchers:make([]*TestLocalDispatcher, numberDispatchers),
 		isStopReceiving:false,
+		t:t,
 	}
 }
 
@@ -107,12 +111,36 @@ func (dispatcher *TestLocalDispatcher) Stop() {
 	dispatcher.isStopReceiving = true
 }
 
-func (dispatcher *TestLocalDispatcher) proceedFirstMessage(toId int) error {
+func (dispatcher *TestLocalDispatcher) proceedFirstMessage(toId int) {
 	if dispatcher.queues[toId].Size() == 0 {
-		return errors.New("Empty message queue")
+		dispatcher.t.Error("Empty message queue")
 	}
 
 	message := dispatcher.queues[toId].Pop()
 	dispatcher.dispatchers[toId].OnReceive(message)
-	return nil
+}
+
+func (dispatcher *TestLocalDispatcher) proceedRandomMessage(generator *rand.Rand) bool {
+	result := false
+	for ind := 0; ind < int(dispatcher.conf.Size()); ind++ {
+		if dispatcher.queues[ind].Size() == 0 {
+			continue
+		}
+
+		if dispatcher.queues[ind].Size() >= 2 && generator.Float32() < 0.5 {
+			dispatcher.queues[ind].Swap(0, 1)
+		}
+
+		result = true
+		message := dispatcher.queues[ind].Pop()
+		dispatcher.dispatchers[ind].OnReceive(message)
+	}
+
+	return result
+}
+
+func (dispatcher *TestLocalDispatcher) ClearQueues() {
+	for ind := 0; ind < len(dispatcher.queues); ind++ {
+		dispatcher.queues[ind].Clear()
+	}
 }
