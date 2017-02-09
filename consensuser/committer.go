@@ -7,8 +7,6 @@ import (
 type Committer interface {
 	Commit(cont.Carry)
 	CommitSet(cont.CarriesSet)
-	//Broadcast(cont.Carry)
-	//BroadcastSet(set cont.CarriesSet)
 }
 
 type testCommitHelper struct {

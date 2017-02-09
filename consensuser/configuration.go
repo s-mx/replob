@@ -4,16 +4,16 @@ import (
 	cont "github.com/s-mx/replob/containers"
 )
 
-type MasterlessConfiguration struct {
+type Configuration struct {
 	Info cont.Set
 }
 
-func NewMasterlessConfiguration(numberNodes uint32) *MasterlessConfiguration {
-	conf := new(MasterlessConfiguration)
+func NewMasterlessConfiguration(numberNodes uint32) Configuration {
+	conf := new(Configuration)
 	conf.Info = cont.NewSet(numberNodes)
-	return conf
+	return *conf
 }
 
-func (conf *MasterlessConfiguration) GetNumberNodes() uint32 {
-	return conf.Info.Size()
+func (conf *Configuration) Size() uint {
+	return uint(conf.Info.Size())
 }
