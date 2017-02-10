@@ -2,7 +2,7 @@ package consensuser
 
 import (
 	cont "github.com/s-mx/replob/containers"
-	log  "log"
+	"log"
 )
 
 // FIXME: OnBroadcast->OnReceive
@@ -56,9 +56,9 @@ func NewCalmConsensuser(dispatcher Dispatcher, committer Committer,
 	}
 }
 
-func (consensuser *CalmConsensuser) Broadcast() {
+func (consensuser *CalmConsensuser) doBroadcast() {
 	msg := cont.NewMessageVote(consensuser.CarriesSet, consensuser.VotedSet, consensuser.CurrentNodes)
-	consensuser.Dispatcher.Broadcast(*msg) // FIXME
+	consensuser.Broadcast(*msg)
 }
 
 func (consensuser *CalmConsensuser) newVote(carry cont.Carry) cont.Message {
@@ -80,7 +80,6 @@ func (consensuser *CalmConsensuser) checkInvariant(msg cont.Message) bool {
 }
 
 func (consensuser *CalmConsensuser) OnBroadcast(msg cont.Message) {
-	// Думаю, это чекать нужно здесь.
 	if consensuser.CurrentNodes.Consist(uint32(msg.IdFrom)) == false {
 		return
 	}
@@ -106,6 +105,7 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 	consensuser.VotedSet.AddSet(cont.NewSetFromValue(uint32(msg.IdFrom)))
 	consensuser.mergeVotes(msg) // don't use msg right after this line
 	consensuser.VotedSet.Intersect(consensuser.CurrentNodes)
+	// FIXME: check for 4 nodes and 2 current nodes
 	if consensuser.Nodes.Size() > consensuser.CurrentNodes.Size() * 2 {
 		log.Printf("current set of nodes of %d consensuser become less than majority", consensuser.Id)
 		consensuser.Stop()
@@ -113,7 +113,7 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 
 	if consensuser.State == Initial {
 		consensuser.State = MayCommit
-		consensuser.Broadcast()
+		consensuser.doBroadcast()
 	}
 
 	if consensuser.VotedSet.Equal(consensuser.CurrentNodes) {
@@ -122,14 +122,14 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 		} else {
 			consensuser.State = MayCommit
 			consensuser.VotedSet.Clear()
-			consensuser.Broadcast()
+			consensuser.doBroadcast()
 		}
 	}
 }
 
 func (consensuser *CalmConsensuser) OnCommit() {
-	consensuser.Committer.CommitSet(consensuser.CarriesSet)
-	consensuser.Dispatcher.Broadcast(consensuser.newCommitMessage()) // FIXME
+	consensuser.CommitSet(consensuser.CarriesSet)
+	consensuser.Broadcast(consensuser.newCommitMessage())
 	consensuser.PrepareNextStep()
 }
 
@@ -146,7 +146,7 @@ func (consensuser *CalmConsensuser) CleanUp() {
 
 func (consensuser *CalmConsensuser) PrepareNextStep() {
 	consensuser.CleanUp()
-	consensuser.IncStep() // FIXME
+	consensuser.IncStep()
 }
 
 func (consensuser *CalmConsensuser) OnDisconnect(idFrom cont.NodeId) {
