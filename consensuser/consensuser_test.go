@@ -10,11 +10,11 @@ func TestOneNode(t *testing.T) {
 	conf := NewMasterlessConfiguration(1)
 	carries := cont.NewCarries(1)
 	LocalDispatcers := NewLocalDispatchers(1, conf, t)
-	dsp := Dispatcher(LocalDispatcers[0])
+	dsp := LocalDispatcers[0]
 
 	helper := newTestCommitHelper(1, carries)
 	cm := NewTestLocalCommitter(0, helper)
-	cons := NewCalmConsensuser(&dsp, Committer(cm), conf, 0)
+	cons := NewCalmConsensuser(dsp, Committer(cm), conf, 0)
 
 	cons.Propose(carries[0])
 	if helper.CheckSafety() == false {
@@ -26,15 +26,15 @@ func TestTwoNodes(t *testing.T) {
 	conf := NewMasterlessConfiguration(2)
 	carries := cont.NewCarries(1, 2)
 	LocalDispatchers := NewLocalDispatchers(2, conf, t)
-	dsp1 := Dispatcher(LocalDispatchers[0])
-	dsp2 := Dispatcher(LocalDispatchers[1])
+	dsp1 := LocalDispatchers[0]
+	dsp2 := LocalDispatchers[1]
 
 	helper := newTestCommitHelper(2, carries)
 	cm1 := NewTestLocalCommitter(0, helper)
 	cm2 := NewTestLocalCommitter(1, helper)
-	cons1 := NewCalmConsensuser(&dsp1, Committer(cm1), conf, 0)
+	cons1 := NewCalmConsensuser(dsp1, Committer(cm1), conf, 0)
 	LocalDispatchers[0].cons = cons1
-	cons2 := NewCalmConsensuser(&dsp2, Committer(cm2), conf, 1)
+	cons2 := NewCalmConsensuser(dsp2, Committer(cm2), conf, 1)
 	LocalDispatchers[1].cons = cons2
 
 	cons1.Propose(carries[0])
@@ -57,18 +57,18 @@ func TestThreeNodes(t *testing.T) {
 	conf := NewMasterlessConfiguration(3)
 	carries := cont.NewCarries(1, 2)
 	LocalBroadcasters := NewLocalDispatchers(3, conf, t)
-	dsp1 := Dispatcher(LocalBroadcasters[0])
-	dsp2 := Dispatcher(LocalBroadcasters[1])
-	dsp3 := Dispatcher(LocalBroadcasters[2])
+	dsp1 := LocalBroadcasters[0]
+	dsp2 := LocalBroadcasters[1]
+	dsp3 := LocalBroadcasters[2]
 
 	helper := newTestCommitHelper(3, carries)
 	cm1 := NewTestLocalCommitter(0, helper)
 	cm2 := NewTestLocalCommitter(1, helper)
 	cm3 := NewTestLocalCommitter(2, helper)
 
-	cons1 := NewCalmConsensuser(&dsp1, Committer(cm1), conf, 0)
-	cons2 := NewCalmConsensuser(&dsp2, Committer(cm2), conf, 1)
-	cons3 := NewCalmConsensuser(&dsp3, Committer(cm3), conf, 2)
+	cons1 := NewCalmConsensuser(dsp1, Committer(cm1), conf, 0)
+	cons2 := NewCalmConsensuser(dsp2, Committer(cm2), conf, 1)
+	cons3 := NewCalmConsensuser(dsp3, Committer(cm3), conf, 2)
 	LocalBroadcasters[0].cons = cons1
 	LocalBroadcasters[1].cons = cons2
 	LocalBroadcasters[2].cons = cons3
@@ -111,8 +111,7 @@ func RunRandomTest(numberNodes int, numberCarries int, t *testing.T) {
 	consensusers := []*CalmConsensuser{}
 	for ind := 0; ind < numberNodes; ind++ {
 		cm := NewTestLocalCommitter(cont.NodeId(ind), helper)
-		dsp := Dispatcher(LocalBroadcasters[ind])
-		cons := NewCalmConsensuser(&dsp, Committer(cm), conf, cont.NodeId(ind))
+		cons := NewCalmConsensuser(LocalBroadcasters[ind], Committer(cm), conf, cont.NodeId(ind))
 		LocalBroadcasters[ind].cons = cons
 		consensusers = append(consensusers, cons)
 	}
