@@ -15,13 +15,13 @@ type Dispatcher interface {
 type TestLocalDispatcher struct {
 	nodeId			cont.NodeId
 	conf 			Configuration
-	cons			*CalmConsensuser
+	cons			*CalmConsensuser // TODO: consider using interface here
 	myStepId		cont.StepId
 	myStamp			cont.Stamp
 	nodesStamps		[]cont.Stamp
 	queues			[]cont.QueueMessages
 	dispatchers     []*TestLocalDispatcher
-	isStopReceiving	bool
+	isStopReceiving	bool // FIXME: rename to isRunning
 
 	t 				*testing.T
 }
@@ -95,12 +95,12 @@ func (dispatcher *TestLocalDispatcher) OnReceive(message cont.Message) {
 
 	if message.StepId > dispatcher.myStepId {
 		dispatcher.isStopReceiving = true
-		return
+		return // TODO: log it as warning when implement using network
 	}
 
 	if dispatcher.messageIsOutdated(message) ||
 	   dispatcher.myStepId > message.StepId {
-		return
+		return // TODO: add comment here the reason of drop (and log it as info when implement using network)
 	}
 
 	dispatcher.updateMessageStamp(message)

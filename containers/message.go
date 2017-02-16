@@ -32,6 +32,7 @@ type Message struct {
 	IdFrom		NodeId
 }
 
+// FIXME: remove pointer on Message
 func NewMessageVote(carrySet CarriesSet, votedSet Set, nodesSet Set) *Message {
 	return &Message{
         typeMessage:Vote,

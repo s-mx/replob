@@ -14,7 +14,7 @@ func TestOneNode(t *testing.T) {
 
 	helper := newTestCommitHelper(1, carries)
 	cm := NewTestLocalCommitter(0, helper)
-	cons := NewCalmConsensuser(dsp, Committer(cm), conf, 0)
+	cons := NewCalmConsensuser(dsp, cm, conf, 0)
 
 	cons.Propose(carries[0])
 	if helper.CheckSafety() == false {
@@ -32,9 +32,9 @@ func TestTwoNodes(t *testing.T) {
 	helper := newTestCommitHelper(2, carries)
 	cm1 := NewTestLocalCommitter(0, helper)
 	cm2 := NewTestLocalCommitter(1, helper)
-	cons1 := NewCalmConsensuser(dsp1, Committer(cm1), conf, 0)
+	cons1 := NewCalmConsensuser(dsp1, cm1, conf, 0)
 	LocalDispatchers[0].cons = cons1
-	cons2 := NewCalmConsensuser(dsp2, Committer(cm2), conf, 1)
+	cons2 := NewCalmConsensuser(dsp2, cm2, conf, 1)
 	LocalDispatchers[1].cons = cons2
 
 	cons1.Propose(carries[0])
@@ -179,7 +179,11 @@ func TestRandomMessages10_100(t *testing.T) {
 
 /*
 Tests TODO:
-1. Check commit messages for 2 nodes.
-2. 3 nodes.
-3. Random tests.
+1. Disconnect + liveness checks.
+	-! change safety check: all prefixes with the same length must be the same
+	+ no disconnects && no message drops => all lengths must be the same
+	-! minor disconnnects without message drops => there are majority nodes with desired messages
+	-! on drop message: just check for prefix safety
+	- on limit dropped message on each step: full safety check
+2. Propose must be right after commit.
  */

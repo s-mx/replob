@@ -5,7 +5,7 @@ import (
 )
 
 type Committer interface {
-	Commit(cont.Carry)
+	//Commit(cont.Carry)
 	CommitSet(cont.CarriesSet)
 }
 
