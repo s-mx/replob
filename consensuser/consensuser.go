@@ -119,6 +119,7 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 		} else {
 			consensuser.State = MayCommit
 			consensuser.VotedSet.Clear()
+			consensuser.VotedSet.Insert(uint32(consensuser.Id))
 			consensuser.doBroadcast()
 		}
 	}
@@ -148,6 +149,7 @@ func (consensuser *CalmConsensuser) PrepareNextStep() {
 
 func (consensuser *CalmConsensuser) OnDisconnect(idFrom cont.NodeId) {
 	if consensuser.State == Initial {
+		consensuser.CurrentNodes.Erase(uint32(idFrom))
 		return
 	}
 

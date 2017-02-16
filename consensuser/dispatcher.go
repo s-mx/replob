@@ -127,6 +127,10 @@ func (dispatcher *TestLocalDispatcher) proceedFirstMessage(toId int) {
 }
 
 func (dispatcher *TestLocalDispatcher) proceedRandomMessage(generator *rand.Rand) bool {
+	if dispatcher.IsRunning() == false {
+		return false
+	}
+
 	result := false
 	for ind := 0; ind < int(dispatcher.conf.Size()); ind++ {
 		if dispatcher.queues[ind].Size() == 0 {
