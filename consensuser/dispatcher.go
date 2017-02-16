@@ -13,15 +13,15 @@ type Dispatcher interface {
 }
 
 type TestLocalDispatcher struct {
-	nodeId			cont.NodeId
-	conf 			Configuration
-	cons			*CalmConsensuser // TODO: consider using interface here
-	myStepId		cont.StepId
-	myStamp			cont.Stamp
-	nodesStamps		[]cont.Stamp
-	queues			[]cont.QueueMessages
-	dispatchers     []*TestLocalDispatcher
-	isStopReceiving	bool // FIXME: rename to isRunning
+	nodeId      cont.NodeId
+	conf        Configuration
+	cons        Consensuser
+	myStepId    cont.StepId
+	myStamp     cont.Stamp
+	nodesStamps []cont.Stamp
+	queues      []cont.QueueMessages
+	dispatchers []*TestLocalDispatcher
+	isRunning   bool
 
 	t 				*testing.T
 }
@@ -41,15 +41,15 @@ func NewLocalDispatchers(numberDispatchers int, conf Configuration, t *testing.T
 
 func NewLocalDispatcher(id cont.NodeId, conf Configuration, numberDispatchers int, t *testing.T) *TestLocalDispatcher {
 	return &TestLocalDispatcher{
-		nodeId:id,
-		conf:conf,
-		myStepId:0,
-		myStamp:0,
-		nodesStamps:make([]cont.Stamp, numberDispatchers),
-		queues:make([]cont.QueueMessages, numberDispatchers),
-		dispatchers:make([]*TestLocalDispatcher, numberDispatchers),
-		isStopReceiving:false,
-		t:t,
+		nodeId:      id,
+		conf:        conf,
+		myStepId:    0,
+		myStamp:     0,
+		nodesStamps: make([]cont.Stamp, numberDispatchers),
+		queues:      make([]cont.QueueMessages, numberDispatchers),
+		dispatchers: make([]*TestLocalDispatcher, numberDispatchers),
+		isRunning:   true,
+		t:           t,
 	}
 }
 
@@ -89,12 +89,12 @@ func (dispatcher *TestLocalDispatcher) IncStep() {
 }
 
 func (dispatcher *TestLocalDispatcher) OnReceive(message cont.Message) {
-	if dispatcher.isStopReceiving {
+	if dispatcher.isRunning == false {
 		return
 	}
 
 	if message.StepId > dispatcher.myStepId {
-		dispatcher.isStopReceiving = true
+		dispatcher.isRunning = false
 		return // TODO: log it as warning when implement using network
 	}
 
@@ -108,7 +108,7 @@ func (dispatcher *TestLocalDispatcher) OnReceive(message cont.Message) {
 }
 
 func (dispatcher *TestLocalDispatcher) Stop() {
-	dispatcher.isStopReceiving = true
+	dispatcher.isRunning = false
 }
 
 func (dispatcher *TestLocalDispatcher) proceedFirstMessage(toId int) {

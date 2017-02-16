@@ -5,8 +5,6 @@ import (
 	"log"
 )
 
-// FIXME: OnBroadcast->OnReceive
-// FIXME: use separated interface for OnReceive to filter incoming messages (drop outdated)
 type Consensuser interface {
 	Propose(cont.Carry)
 	OnBroadcast(cont.Message)
@@ -58,11 +56,11 @@ func NewCalmConsensuser(dispatcher Dispatcher, committer Committer,
 
 func (consensuser *CalmConsensuser) doBroadcast() {
 	msg := cont.NewMessageVote(consensuser.CarriesSet, consensuser.VotedSet, consensuser.CurrentNodes)
-	consensuser.Broadcast(*msg)
+	consensuser.Broadcast(msg)
 }
 
 func (consensuser *CalmConsensuser) newVote(carry cont.Carry) cont.Message {
-	return *cont.NewMessageVote(cont.NewCarriesSet(carry), consensuser.VotedSet, consensuser.CurrentNodes)
+	return cont.NewMessageVote(cont.NewCarriesSet(carry), consensuser.VotedSet, consensuser.CurrentNodes)
 }
 
 // checks that all nodes are agreed on sequence of carries and nodes group
@@ -105,8 +103,7 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 	consensuser.VotedSet.AddSet(cont.NewSetFromValue(uint32(msg.IdFrom)))
 	consensuser.mergeVotes(msg) // don't use msg right after this line
 	consensuser.VotedSet.Intersect(consensuser.CurrentNodes)
-	// FIXME: check for 4 nodes and 2 current nodes
-	if consensuser.Nodes.Size() > consensuser.CurrentNodes.Size() * 2 {
+	if consensuser.Nodes.Size() >= consensuser.CurrentNodes.Size() * 2 {
 		log.Printf("current set of nodes of %d consensuser become less than majority", consensuser.Id)
 		consensuser.Stop()
 	}
@@ -155,7 +152,7 @@ func (consensuser *CalmConsensuser) OnDisconnect(idFrom cont.NodeId) {
 	}
 
 	disconnectedSet := cont.NewSetFromValue(uint32(idFrom))
-	consensuser.OnVote(*cont.NewMessageVote(consensuser.CarriesSet,
-											consensuser.VotedSet.Diff(disconnectedSet),
-											consensuser.CurrentNodes.Diff(disconnectedSet)))
+	consensuser.OnVote(cont.NewMessageVote(consensuser.CarriesSet,
+		                                   consensuser.VotedSet.Diff(disconnectedSet),
+										   consensuser.CurrentNodes.Diff(disconnectedSet)))
 }

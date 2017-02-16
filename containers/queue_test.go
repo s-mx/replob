@@ -17,7 +17,9 @@ func TestPushPop(t *testing.T) {
 	nodesSet := NewSet(10)
 
 	for ind := 0; ind < 10; ind++ {
-		messages = append(messages, *NewMessageVote(Stamp(ind), 0, *carriesSet, votedSet, nodesSet, NodeId(ind)))
+		message := NewMessageVote(carriesSet, votedSet, nodesSet)
+		message.IdFrom = NodeId(ind)
+		messages = append(messages, message)
 		votedSet.Insert(uint32(ind))
 		queue.Push(messages[ind])
 		if queue.Size() != ind+1 {
