@@ -9,10 +9,10 @@ import (
 func TestOneNode(t *testing.T) {
 	conf := NewMasterlessConfiguration(1)
 	carries := cont.NewCarries(1)
-	LocalDispatcers := NewLocalDispatchers(1, conf, t)
-	dsp := LocalDispatcers[0]
+	LocalDispatchers := NewLocalDispatchers(1, conf, t)
+	dsp := LocalDispatchers[0]
 
-	helper := newTestCommitHelper(1, carries)
+	helper := newTestCommitHelper(1, carries, LocalDispatchers)
 	cm := NewTestLocalCommitter(0, helper)
 	cons := NewCalmConsensuser(dsp, cm, conf, 0)
 
@@ -29,7 +29,7 @@ func TestTwoNodes(t *testing.T) {
 	dsp1 := LocalDispatchers[0]
 	dsp2 := LocalDispatchers[1]
 
-	helper := newTestCommitHelper(2, carries)
+	helper := newTestCommitHelper(2, carries, LocalDispatchers)
 	cm1 := NewTestLocalCommitter(0, helper)
 	cm2 := NewTestLocalCommitter(1, helper)
 	cons1 := NewCalmConsensuser(dsp1, cm1, conf, 0)
@@ -61,7 +61,7 @@ func TestThreeNodes(t *testing.T) {
 	dsp2 := LocalBroadcasters[1]
 	dsp3 := LocalBroadcasters[2]
 
-	helper := newTestCommitHelper(3, carries)
+	helper := newTestCommitHelper(3, carries, LocalBroadcasters)
 	cm1 := NewTestLocalCommitter(0, helper)
 	cm2 := NewTestLocalCommitter(1, helper)
 	cm3 := NewTestLocalCommitter(2, helper)
@@ -107,7 +107,7 @@ func RunRandomTest(numberNodes int, numberCarries int, t *testing.T) {
 	carries := cont.NewCarriesN(numberCarries)
 	LocalBroadcasters := NewLocalDispatchers(numberNodes, conf, t)
 
-	helper := newTestCommitHelper(numberNodes, carries)
+	helper := newTestCommitHelper(numberNodes, carries, LocalBroadcasters)
 	consensusers := []*CalmConsensuser{}
 	for ind := 0; ind < numberNodes; ind++ {
 		cm := NewTestLocalCommitter(cont.NodeId(ind), helper)
@@ -180,7 +180,7 @@ func TestRandomMessages10_100(t *testing.T) {
 /*
 Tests TODO:
 1. Disconnect + liveness checks.
-	-! change safety check: all prefixes with the same length must be the same
+	+ change safety check: all prefixes with the same length must be the same
 	+ no disconnects && no message drops => all lengths must be the same
 	-! minor disconnnects without message drops => there are majority nodes with desired messages
 	-! on drop message: just check for prefix safety

@@ -5,29 +5,49 @@ import (
 )
 
 type Committer interface {
-	//Commit(cont.Carry)
 	CommitSet(cont.CarriesSet)
 }
 
 type testCommitHelper struct {
-	Carries [][]cont.Carry
-	DesiredCarries []cont.Carry
+	Carries 		[][]cont.Carry
+	DesiredCarries 	[]cont.Carry
+	arrDispatchers	[]*TestLocalDispatcher
 }
 
-func newTestCommitHelper(numberNodes int, desiredCarries []cont.Carry) *testCommitHelper {
+func newTestCommitHelper(numberNodes int,
+						 desiredCarries []cont.Carry,
+	                     arrDispatchers []*TestLocalDispatcher) *testCommitHelper {
 	return &testCommitHelper{
 		Carries:make([][]cont.Carry, numberNodes),
 		DesiredCarries:desiredCarries,
+		arrDispatchers:arrDispatchers,
+	}
+}
+
+func (helper *testCommitHelper) isRunning(ind int) bool {
+	return helper.arrDispatchers[ind].IsRunning()
+}
+
+func (helper *testCommitHelper) getCommonLength(ind int) int {
+	a := len(helper.DesiredCarries)
+	b := len(helper.Carries[ind])
+	// Кажется, в Go нету функции минимума для целых чисел
+	if a < b {
+		return a
+	} else {
+		return b
 	}
 }
 
 func (helper *testCommitHelper) CheckSafety() bool {
 	for indNode := 0; indNode < len(helper.Carries); indNode++ {
-		if len(helper.Carries[indNode]) != len(helper.DesiredCarries) {
+		if helper.arrDispatchers[indNode].IsRunning() &&
+		   len(helper.Carries[indNode]) != len(helper.DesiredCarries) {
 			return false
 		}
 
-		for indCarry := 0; indCarry < len(helper.Carries[indNode]); indCarry++ {
+		commonLength := helper.getCommonLength(indNode)
+		for indCarry := 0; indCarry < commonLength; indCarry++ {
 			if helper.Carries[indNode][indCarry].NotEqual(helper.DesiredCarries[indCarry]) {
 				return false
 			}

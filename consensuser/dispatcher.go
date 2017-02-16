@@ -10,6 +10,7 @@ type Dispatcher interface {
 	Broadcast(message cont.Message)
 	IncStep()
 	Stop()
+	IsRunning() bool
 }
 
 type TestLocalDispatcher struct {
@@ -30,6 +31,7 @@ func NewLocalDispatchers(numberDispatchers int, conf Configuration, t *testing.T
 	arrPtr := make([]*TestLocalDispatcher, numberDispatchers)
 	for i := 0; i < numberDispatchers; i++ {
 		arrPtr[i] = NewLocalDispatcher(cont.NodeId(i), conf, numberDispatchers, t)
+		arrPtr[i].dispatchers[i] = arrPtr[i]
 		for j := 0; j < i; j++ {
 			arrPtr[i].dispatchers[j] = arrPtr[j]
 			arrPtr[j].dispatchers[i] = arrPtr[i]
@@ -105,6 +107,10 @@ func (dispatcher *TestLocalDispatcher) OnReceive(message cont.Message) {
 
 	dispatcher.updateMessageStamp(message)
 	dispatcher.cons.OnBroadcast(message)
+}
+
+func (dispatcher *TestLocalDispatcher) IsRunning() bool {
+	return dispatcher.isRunning
 }
 
 func (dispatcher *TestLocalDispatcher) Stop() {
