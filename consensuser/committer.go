@@ -9,6 +9,7 @@ type Committer interface {
 }
 
 type testCommitHelper struct {
+	// FIXME: rename Carries
 	Carries 		[][]cont.Carry
 	DesiredCarries 	[]cont.Carry
 	arrDispatchers	[]*TestLocalDispatcher
