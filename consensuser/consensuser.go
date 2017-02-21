@@ -106,6 +106,7 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 	if consensuser.Nodes.Size() >= consensuser.CurrentNodes.Size() * 2 {
 		log.Printf("current set of nodes of %d consensuser become less than majority", consensuser.Id)
 		consensuser.Stop()
+		// FIXME: add return here
 	}
 
 	if consensuser.State == Initial {
@@ -119,6 +120,7 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 		} else {
 			consensuser.State = MayCommit
 			consensuser.VotedSet.Clear()
+			// TODO: make example where it provides benefits
 			consensuser.VotedSet.Insert(uint32(consensuser.Id))
 			consensuser.doBroadcast()
 		}
@@ -148,6 +150,7 @@ func (consensuser *CalmConsensuser) PrepareNextStep() {
 }
 
 func (consensuser *CalmConsensuser) OnDisconnect(idFrom cont.NodeId) {
+	// TODO: consider removing this to allow spread knowledge about disconnected node
 	if consensuser.State == Initial {
 		consensuser.CurrentNodes.Erase(uint32(idFrom))
 		return

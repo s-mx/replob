@@ -241,6 +241,8 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, t *testing.T) {
 	for numberProposedCarries != numberCarries {
 		for true {
 			flag := false
+			// FIXME: disconnect preserving majority to avoid failure e.g. specifying maximum number of nodes to be disconnected
+			// FIXME: consider checking majority separately
 			// Disconnect this
 			if generator.Float32() < 0.05 {
 				indDisconnect := generator.Intn(numberNodes)
