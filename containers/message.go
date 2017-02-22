@@ -3,7 +3,8 @@ package containers
 // States for messages
 const (
 	Vote       = iota
-	Commit     = iota
+	Commit
+	Empty
 )
 
 type NodeId int
@@ -23,33 +24,37 @@ func (step *StepId) NotEqual(rghStep *StepId) bool {
 }
 
 type Message struct {
-	typeMessage int
+	TypeMessage int
 	Stamp       Stamp
-	StepId		StepId
+	StepId      StepId
 	VotedSet    Set
 	CarriesSet  CarriesSet
 	NodesSet    Set
-	IdFrom		NodeId
+	IdFrom      NodeId
 }
 
 func NewMessageVote(carrySet CarriesSet, votedSet Set, nodesSet Set) Message {
 	return Message{
-        typeMessage:Vote,
-        CarriesSet:carrySet,
-        VotedSet:votedSet,
-        NodesSet:nodesSet,
+        TypeMessage: Vote,
+        CarriesSet:  carrySet,
+        VotedSet:    votedSet,
+        NodesSet:    nodesSet,
     }
 }
 
 func NewMessageCommit(CarrySet CarriesSet) *Message {
 	return &Message{
-        typeMessage:Commit,
-        CarriesSet:CarrySet,
+        TypeMessage: Commit,
+        CarriesSet:  CarrySet,
     }
 }
 
+func NewEmptyMessage() Message {
+	return Message{TypeMessage: Empty}
+}
+
 func (msg *Message) GetType() int {
-	return msg.typeMessage
+	return msg.TypeMessage
 }
 
 // For testing purposes

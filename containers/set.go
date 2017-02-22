@@ -1,6 +1,6 @@
 package containers
 
-type Set uint64
+type Set int
 
 func NewSet(numberNodes uint32) Set {
 	// Initialize first N-1 smallest bits by 1
@@ -14,7 +14,7 @@ func NewSetFromValue(value uint32) Set {
 func (set Set) Size() uint32 {
 	result := uint32(0)
 	one := uint64(1)
-	for ind := 0; ind < 64; ind++ {
+	for ind := 0; ind < 32; ind++ {
 		if (uint64(set) & (one << uint(ind))) > 0 {
 			result++
 		}
@@ -46,6 +46,10 @@ func (set *Set) Clear() {
 }
 
 func (set Set) Consist(elem uint32) bool {
+	if elem >= 64 {
+		return false
+	}
+
 	one := uint64(1)
 	return (uint64(set) & (one << elem)) > 0
 }
@@ -72,7 +76,7 @@ func (set *Set) Intersect(rgh Set) {
 
 func (set *Set) Erase(arg interface{}) {
 	id := arg.(uint32)
-	if *set & (1 << id) > 0 {
+	if id < 32 && *set & (1 << id) > 0 {
 		*set ^= 1 << id
 	}
 }
