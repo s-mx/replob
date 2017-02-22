@@ -1,5 +1,7 @@
 package containers
 
+import "math/rand"
+// TODO: проверить весь код здесь, после изменения int64 на int
 type Set int
 
 func NewSet(numberNodes uint32) Set {
@@ -9,6 +11,23 @@ func NewSet(numberNodes uint32) Set {
 
 func NewSetFromValue(value uint32) Set {
 	return 1 << value
+}
+
+func NewRandomSubset(set Set, sizeSubset int, generator *rand.Rand) Set {
+	subset := Set(0)
+	sizeSet := int(set.Size())
+	for sizeSubset > 0 {
+		sizeSubset--
+		for {
+			ind := generator.Intn(sizeSet)
+			if subset.Consist(uint32(ind)) == false {
+				subset.Insert(uint32(ind))
+				break
+			}
+		}
+	}
+
+	return subset
 }
 
 func (set Set) Size() uint32 {

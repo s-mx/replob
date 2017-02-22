@@ -23,6 +23,7 @@ func (step *StepId) NotEqual(rghStep *StepId) bool {
 	return ! step.Equal(rghStep)
 }
 
+// TODO: Реализовать интерфейс Marshall, UnMarshall
 type Message struct {
 	TypeMessage int
 	Stamp       Stamp

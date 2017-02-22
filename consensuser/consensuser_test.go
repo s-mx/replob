@@ -218,7 +218,7 @@ func TestDisconnectThreeNodes(t *testing.T) {
 	}
 }
 
-func RunRandomDisconnectTest(numberNodes int, numberCarries int, t *testing.T) {
+func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnects int, t *testing.T) {
 	Source := rand.NewSource(42)
 	generator := rand.New(Source)
 
@@ -226,6 +226,7 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, t *testing.T) {
 	carries := cont.NewCarriesN(numberCarries)
 	LocalDispatchers := NewLocalDispatchers(numberNodes, conf, t)
 
+	subsetDisconnectedNodes := cont.NewRandomSubset(conf.Info, numberDisconnects, generator)
 	helper := newTestCommitHelper(numberNodes, carries, LocalDispatchers)
 	consensusers := []*CalmConsensuser{}
 	for ind := 0; ind < numberNodes; ind++ {
@@ -241,14 +242,12 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, t *testing.T) {
 	for numberProposedCarries != numberCarries {
 		for true {
 			flag := false
-			// FIXME: disconnect preserving majority to avoid failure e.g. specifying maximum number of nodes to be disconnected
 			// FIXME: consider checking majority separately
 			// Disconnect this
-			if generator.Float32() < 0.05 {
-				indDisconnect := generator.Intn(numberNodes)
-				for LocalDispatchers[indDisconnect].IsRunning() == false {
-					indDisconnect = (indDisconnect + 1) % numberNodes
-				}
+			if subsetDisconnectedNodes.Size() > 0 &&  generator.Float32() < 0.01 {
+				indDisconnect := subsetDisconnectedNodes.Get(0)
+				subsetDisconnectedNodes.Erase(indDisconnect)
+
 
 				LocalDispatchers[indDisconnect].Stop()
 				for ind := 0; ind < numberNodes; ind++ {
@@ -297,34 +296,35 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, t *testing.T) {
 	}
 }
 
+// TODO: С двумя нодами нельзя делать disconnect
+/*
 func TestRandomDisconnect2(t *testing.T) {
 	RunRandomDisconnectTest(2, 1, t)
-}
+}*/
 
 func TestRandomDisconnect5(t *testing.T) {
-	RunRandomDisconnectTest(5, 10, t)
+	RunRandomDisconnectTest(5, 10, 2, t)
 }
 
-/*
+
 func TestRandomDisconnect5_100(t *testing.T) {
-	RunRandomDisconnectTest(5, 100, t)
+	RunRandomDisconnectTest(5, 100, 2, t)
 }
 
 func TestRandomDisconnect10_10(t *testing.T) {
-	RunRandomDisconnectTest(10, 10, t)
+	RunRandomDisconnectTest(10, 10, 4, t)
 }
 
 func TestRandomDisconnect10_100(t *testing.T) {
-	RunRandomDisconnectTest(10, 100, t)
+	RunRandomDisconnectTest(10, 100, 4, t)
 }
-*/
 
 /*
 Tests TODO:
 1. Disconnect + liveness checks.
 	+ change safety check: all prefixes with the same length must be the same
 	+ no disconnects && no message drops => all lengths must be the same
-	-! minor disconnnects without message drops => there are majority nodes with desired messages
+	+ minor disconnnects without message drops => there are majority nodes with desired messages
 	-! on drop message: just check for prefix safety
 	- on limit dropped message on each step: full safety check
 2. Propose must be right after commit.
