@@ -1,11 +1,11 @@
 package network
 
 import (
+	"log"
 	"fmt"
 	"bytes"
 	"encoding/gob"
 	"net"
-	"os"
 	"io"
 	cont "github.com/s-mx/replob/containers"
 )
@@ -42,6 +42,7 @@ func HandleClient(conn net.Conn) {
 }
 
 func RunLocalServer(service string) {
+	// TODO: Log it to info
 	listener, err := net.Listen("tcp", service)
 	checkError(err)
 
@@ -51,6 +52,7 @@ func RunLocalServer(service string) {
 			continue
 		}
 
+		// TODO: Log it to debug
 		fmt.Println("Listen")
 		// Кажется, нужно делать это ассинхроно
 		HandleClient(conn)
@@ -63,6 +65,7 @@ func NewLocalServer(service string) {
 
 func checkError(err error) {
 	if err != nil {
-		os.Exit(1)
+		// TODO: сделать конкретнее
+		log.Panic(err.Error())
 	}
 }
