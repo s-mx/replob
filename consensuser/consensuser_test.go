@@ -128,15 +128,17 @@ func RunRandomTest(numberNodes int, numberCarries int, t *testing.T) {
 				}
 			}
 
+			ind := helper.findIndLastCommit(numberProposedCarries)
+			if ind != -1 && numberProposedCarries < numberCarries {
+				consensusers[ind].Propose(carries[numberProposedCarries])
+				numberProposedCarries += 1
+				continue
+			}
+
 			if flag == false {
 				break
 			}
 		}
-
-
-		nodeId := generator.Intn(numberNodes)
-		consensusers[nodeId].Propose(carries[numberProposedCarries])
-		numberProposedCarries++
 	}
 
 	for true {
@@ -175,10 +177,6 @@ func TestRandomMessages10_10(t *testing.T) {
 
 func TestRandomMessages10_100(t *testing.T) {
 	RunRandomTest(10, 100, t)
-}
-
-func TestDisconnectTwoNodes(t *testing.T) {
-	// ???
 }
 
 func TestDisconnectThreeNodes(t *testing.T) {
@@ -263,19 +261,17 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 				}
 			}
 
+			ind := helper.findIndLastCommit(numberProposedCarries)
+			if ind != -1 && numberProposedCarries < numberCarries {
+				consensusers[ind].Propose(carries[numberProposedCarries])
+				numberProposedCarries += 1
+				continue
+			}
+
 			if flag == false {
 				break
 			}
 		}
-
-
-		nodeId := generator.Intn(numberNodes)
-		for LocalDispatchers[nodeId].IsRunning() == false {
-			nodeId = (nodeId + 1) % numberNodes
-		}
-
-		consensusers[nodeId].Propose(carries[numberProposedCarries])
-		numberProposedCarries++
 	}
 
 	for true {
@@ -295,12 +291,6 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 		t.Error("Carry isn't committed")
 	}
 }
-
-// TODO: С двумя нодами нельзя делать disconnect
-/*
-func TestRandomDisconnect2(t *testing.T) {
-	RunRandomDisconnectTest(2, 1, t)
-}*/
 
 func TestRandomDisconnect5(t *testing.T) {
 	RunRandomDisconnectTest(5, 10, 2, t)
