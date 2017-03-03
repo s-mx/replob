@@ -4,13 +4,13 @@ import (
 	cont "github.com/s-mx/replob/containers"
 	"testing"
 	"math/rand"
+	"log"
 )
 
 type Dispatcher interface {
 	Broadcast(message cont.Message)
 	IncStep()
 	Stop()
-	IsRunning() bool
 }
 
 type TestLocalDispatcher struct {
@@ -97,12 +97,14 @@ func (dispatcher *TestLocalDispatcher) OnReceive(message cont.Message) {
 
 	if message.StepId > dispatcher.myStepId {
 		dispatcher.isRunning = false
-		return // TODO: log it as warning when implement using network
+		log.Printf("WARNING: StepId of dispatcher is outdated: Message StepId=%d, dispatcher StepId=%d\n", message.StepId, dispatcher.myStepId)
+		return
 	}
 
 	if dispatcher.messageIsOutdated(message) ||
 	   dispatcher.myStepId > message.StepId {
-		return // TODO: add comment here the reason of drop (and log it as info when implement using network)
+		// Message is outdated by stamp or by stepId
+		return
 	}
 
 	dispatcher.updateMessageStamp(message)

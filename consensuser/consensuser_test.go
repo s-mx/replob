@@ -177,10 +177,6 @@ func TestRandomMessages10_100(t *testing.T) {
 	RunRandomTest(10, 100, t)
 }
 
-func TestDisconnectTwoNodes(t *testing.T) {
-	// ???
-}
-
 func TestDisconnectThreeNodes(t *testing.T) {
 	conf := NewMasterlessConfiguration(3)
 	carries := cont.NewCarries(1)
@@ -296,16 +292,9 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 	}
 }
 
-// TODO: С двумя нодами нельзя делать disconnect
-/*
-func TestRandomDisconnect2(t *testing.T) {
-	RunRandomDisconnectTest(2, 1, t)
-}*/
-
 func TestRandomDisconnect5(t *testing.T) {
 	RunRandomDisconnectTest(5, 10, 2, t)
 }
-
 
 func TestRandomDisconnect5_100(t *testing.T) {
 	RunRandomDisconnectTest(5, 100, 2, t)
