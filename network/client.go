@@ -20,7 +20,7 @@ func NewClientService(id int, service string) *ClientService {
 	return &ClientService{
 		id:id,
 		service:service,
-		channelMessage:make(chan cont.Message, 1),
+		channelMessage:make(chan cont.Message, 1), // FIXME: use flags instead
 	}
 }
 
@@ -41,6 +41,8 @@ func (service *ClientService) start() {
 			return
 		}
 
+		// FIXME: reuse connection
+		// FIXME: implement reconnection and appropriate error handling
 		conn, err := net.Dial("tcp", service.service)
 		checkError(err)
 		err = gob.NewEncoder(conn).Encode(message)
@@ -63,6 +65,7 @@ func NewClient(service string) net.Conn {
 	return conn
 }
 
+// FIXME: cleanup
 func SendMessage(service string, message cont.Message) {
 	buffer := bytes.Buffer{}
 	encoder := gob.NewEncoder(&buffer)

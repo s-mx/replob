@@ -10,8 +10,8 @@ type NetworkDispatcher struct {
 	calmConsensus.Dispatcher
 	id             			int
 	config         			Configuration
-	channelServer			chan string
-	channelServerMessage	chan cont.Message
+	channelServer			chan string // FIXME: remove
+	channelServerMessage	chan cont.Message // FIXME: remove
 	ServerService			*ServerService
 	ClientServices			[]*ClientService
 
@@ -23,6 +23,7 @@ type NetworkDispatcher struct {
 	isRunning     			bool
 }
 
+// FIXME: use Consensuser instance (interface) here
 func NewNetworkDispatcher(id int, config Configuration) *NetworkDispatcher {
 	ptr := &NetworkDispatcher{
 		id:id,
@@ -56,6 +57,7 @@ func (dispatcher *NetworkDispatcher) RunClients() {
 	}
 }
 
+// FIXME: Use consistent names, see services .Start()
 func (dispatcher *NetworkDispatcher) Run() {
 	if dispatcher.cons == nil {
 		log.Panicf("ERROR dispatcher[%d]: consensuser isn't created\n", dispatcher.id)
@@ -66,6 +68,8 @@ func (dispatcher *NetworkDispatcher) Run() {
 
 	dispatcher.isRunning = true
 
+	// FIXME: extract to another method: Loop()
+	// FIXME: check for stopping
 	for {
 		message := <-dispatcher.ServerService.channelMessage
 		dispatcher.OnReceive(message)
@@ -110,7 +114,8 @@ func (dispatcher *NetworkDispatcher) Broadcast(message cont.Message) {
 			continue
 		}
 
-		// TODO: this operation is blocking.
+		// FIXME: increase size of channel to avoid blocking
+		// FIXME: in case of blocking just drop the message
 		// In future we need something else for that.
 		// May be set high buffer for channel.
 		dispatcher.ClientServices[ind].channelMessage<-message

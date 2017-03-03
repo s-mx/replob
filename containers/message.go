@@ -25,7 +25,7 @@ func (step *StepId) NotEqual(rghStep *StepId) bool {
 
 // TODO: Реализовать интерфейс Marshall, UnMarshall
 type Message struct {
-	TypeMessage int
+	MessageType int
 	Stamp       Stamp
 	StepId      StepId
 	VotedSet    Set
@@ -36,7 +36,7 @@ type Message struct {
 
 func NewMessageVote(carrySet CarriesSet, votedSet Set, nodesSet Set) Message {
 	return Message{
-        TypeMessage: Vote,
+        MessageType: Vote,
         CarriesSet:  carrySet,
         VotedSet:    votedSet,
         NodesSet:    nodesSet,
@@ -45,17 +45,17 @@ func NewMessageVote(carrySet CarriesSet, votedSet Set, nodesSet Set) Message {
 
 func NewMessageCommit(CarrySet CarriesSet) *Message {
 	return &Message{
-        TypeMessage: Commit,
+        MessageType: Commit,
         CarriesSet:  CarrySet,
     }
 }
 
 func NewEmptyMessage() Message {
-	return Message{TypeMessage: Empty}
+	return Message{MessageType: Empty}
 }
 
 func (msg *Message) GetType() int {
-	return msg.TypeMessage
+	return msg.MessageType
 }
 
 // For testing purposes

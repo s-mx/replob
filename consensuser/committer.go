@@ -25,6 +25,7 @@ func newTestCommitHelper(numberNodes int,
 }
 
 func (helper *testCommitHelper) findIndLastCommit(lastLength int) int {
+	// FIXME: remove result var
 	result := -1
 	for ind := 0; ind < len(helper.arrNodeCarries); ind++ {
 		if helper.isRunning(ind) == false {

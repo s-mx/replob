@@ -14,7 +14,7 @@ type ServerService struct {
 	nameServer		string
 	service			string
 	channelMessage	chan cont.Message
-	channelStop		chan int
+	channelStop		chan int // FIXME: consider using interface{}
 	semaphore		sync.WaitGroup
 }
 
@@ -23,11 +23,12 @@ func NewServerService(id int, config Configuration) *ServerService {
 		id:id,
 		nameServer:config.nameServer,
 		service:config.serviceServer,
-		channelMessage:make(chan cont.Message, 1),
+		channelMessage:make(chan cont.Message, 1), // FIXME: 1
 	}
 }
 
 func (service *ServerService) handleMessage(conn *net.TCPConn) {
+	// FIXME: resuse connection in for {} loop
 	defer conn.Close()
 	defer service.semaphore.Done()
 
@@ -62,7 +63,7 @@ func (service *ServerService) Serve(listener *net.TCPListener) {
 		conn.RemoteAddr()
 		log.Printf("INFO server[%d]: %s\n", service.id, conn.RemoteAddr().String())
 		service.semaphore.Add(1)
-		go service.handleMessage(conn)
+		go service.handleMessage(conn) // FIXME: rename to acceptConnection or handleConnection
 	}
 }
 
@@ -70,13 +71,13 @@ func (service *ServerService) Start() {
 	laddr, err := net.ResolveTCPAddr("tcp", service.service)
 	checkError(err)
 	listener, err := net.ListenTCP("tcp", laddr)
-	service.logStart()
-	service.semaphore.Add(1)
+	service.logStart() // FIXME: inline this
+	service.semaphore.Add(1) // FIXME: use channel
 	go service.Serve(listener)
 }
 
 func (service *ServerService) Stop() {
-	service.channelStop<-0
+	service.channelStop<-0 // FIXME: use close instead, see client
 	service.semaphore.Wait()
 }
 
