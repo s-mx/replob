@@ -24,6 +24,21 @@ func newTestCommitHelper(numberNodes int,
 	}
 }
 
+func (helper *testCommitHelper) findIndLastCommit(lastLength int) int {
+	result := -1
+	for ind := 0; ind < len(helper.arrNodeCarries); ind++ {
+		if helper.isRunning(ind) == false {
+			continue
+		}
+
+		if lastLength == len(helper.arrNodeCarries[ind]) {
+			result = ind
+		}
+	}
+
+	return result
+}
+
 func (helper *testCommitHelper) isRunning(ind int) bool {
 	return helper.arrDispatchers[ind].IsRunning()
 }

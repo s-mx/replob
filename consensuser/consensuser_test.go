@@ -128,15 +128,17 @@ func RunRandomTest(numberNodes int, numberCarries int, t *testing.T) {
 				}
 			}
 
+			ind := helper.findIndLastCommit(numberProposedCarries)
+			if ind != -1 && numberProposedCarries < numberCarries {
+				consensusers[ind].Propose(carries[numberProposedCarries])
+				numberProposedCarries += 1
+				continue
+			}
+
 			if flag == false {
 				break
 			}
 		}
-
-
-		nodeId := generator.Intn(numberNodes)
-		consensusers[nodeId].Propose(carries[numberProposedCarries])
-		numberProposedCarries++
 	}
 
 	for true {
@@ -259,19 +261,17 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 				}
 			}
 
+			ind := helper.findIndLastCommit(numberProposedCarries)
+			if ind != -1 && numberProposedCarries < numberCarries {
+				consensusers[ind].Propose(carries[numberProposedCarries])
+				numberProposedCarries += 1
+				continue
+			}
+
 			if flag == false {
 				break
 			}
 		}
-
-
-		nodeId := generator.Intn(numberNodes)
-		for LocalDispatchers[nodeId].IsRunning() == false {
-			nodeId = (nodeId + 1) % numberNodes
-		}
-
-		consensusers[nodeId].Propose(carries[numberProposedCarries])
-		numberProposedCarries++
 	}
 
 	for true {
