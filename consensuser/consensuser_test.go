@@ -261,6 +261,7 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 				}
 			}
 
+			// FIXME: check for numberProposedCarries < numberCarries firstly
 			ind := helper.findIndLastCommit(numberProposedCarries)
 			if ind != -1 && numberProposedCarries < numberCarries {
 				consensusers[ind].Propose(carries[numberProposedCarries])
@@ -296,7 +297,6 @@ func TestRandomDisconnect5(t *testing.T) {
 	RunRandomDisconnectTest(5, 10, 2, t)
 }
 
-
 func TestRandomDisconnect5_100(t *testing.T) {
 	RunRandomDisconnectTest(5, 100, 2, t)
 }
@@ -315,7 +315,8 @@ Tests TODO:
 	+ change safety check: all prefixes with the same length must be the same
 	+ no disconnects && no message drops => all lengths must be the same
 	+ minor disconnnects without message drops => there are majority nodes with desired messages
-	-! on drop message: just check for prefix safety
 	- on limit dropped message on each step: full safety check
+	- on dropped message: if there is no any message in the queues
+	 	=> resend the latest message again to each client from each node
 2. Propose must be right after commit.
  */
