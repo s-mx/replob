@@ -2,6 +2,7 @@ package consensuser
 
 import (
 	cont "github.com/s-mx/replob/containers"
+	"log"
 )
 
 type Committer interface {
@@ -25,19 +26,13 @@ func newTestCommitHelper(numberNodes int,
 }
 
 func (helper *testCommitHelper) findIndLastCommit(lastLength int) int {
-	// FIXME: remove result var
-	result := -1
 	for ind := 0; ind < len(helper.arrNodeCarries); ind++ {
-		if helper.isRunning(ind) == false {
-			continue
-		}
-
-		if lastLength == len(helper.arrNodeCarries[ind]) {
-			result = ind
+		if helper.isRunning(ind) && lastLength == len(helper.arrNodeCarries[ind]) {
+			return ind
 		}
 	}
 
-	return result
+	return -1
 }
 
 func (helper *testCommitHelper) isRunning(ind int) bool {
@@ -93,7 +88,9 @@ func (committer *TestLocalCommiter) Commit(carry cont.Carry) {
 func (committer *TestLocalCommiter) CommitSet(set cont.CarriesSet) {
 	sizeSet := set.Size()
 	for ind := 0; ind < sizeSet; ind++ {
-		committer.Commit(set.Get(ind))
+		carry := set.Get(ind)
+		log.Printf("Carry %d committied", carry.Id)
+		committer.Commit(carry)
 	}
 }
 
