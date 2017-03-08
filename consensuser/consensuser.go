@@ -120,7 +120,6 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 		} else {
 			consensuser.State = MayCommit
 			consensuser.VotedSet.Clear()
-			// TODO: make example where it provides benefits
 			consensuser.VotedSet.Insert(uint32(consensuser.Id))
 			consensuser.doBroadcast()
 		}
