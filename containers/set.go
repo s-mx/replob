@@ -1,7 +1,7 @@
 package containers
 
 import "math/rand"
-// TODO: проверить весь код здесь, после изменения int64 на int
+// TODO: кажется, что здесь нужен интерфейс.
 type Set int
 
 func NewSet(numberNodes uint32) Set {
@@ -32,9 +32,9 @@ func NewRandomSubset(set Set, sizeSubset int, generator *rand.Rand) Set {
 
 func (set Set) Size() uint32 {
 	result := uint32(0)
-	one := uint64(1)
+	one := uint32(1)
 	for ind := 0; ind < 32; ind++ {
-		if (uint64(set) & (one << uint(ind))) > 0 {
+		if (uint32(set) & (one << uint(ind))) > 0 {
 			result++
 		}
 	}
@@ -44,9 +44,9 @@ func (set Set) Size() uint32 {
 
 func (set Set) Get(ind uint32) uint32 {
 	var counter, indexSet uint32
-	one := uint64(1)
+	one := uint32(1)
 	for counter < ind {
-		if (uint64(set) & (one << uint(indexSet))) > 0 {
+		if (uint32(set) & (one << uint(indexSet))) > 0 {
 			counter++
 		}
 
@@ -65,12 +65,12 @@ func (set *Set) Clear() {
 }
 
 func (set Set) Consist(elem uint32) bool {
-	if elem >= 64 {
+	if elem >= 32 {
 		return false
 	}
 
-	one := uint64(1)
-	return (uint64(set) & (one << elem)) > 0
+	one := uint32(1)
+	return (uint32(set) & (one << elem)) > 0
 }
 
 func (set Set) Equal(rgh Set) bool {
@@ -86,7 +86,7 @@ func (set *Set) AddSet(rghSet Set) {
 }
 
 func (set *Set) Insert(id uint32) {
-	*set |= Set(uint64(1) << id)
+	*set |= Set(uint32(1) << id)
 }
 
 func (set *Set) Intersect(rgh Set) {

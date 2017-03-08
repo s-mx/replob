@@ -120,7 +120,6 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 		} else {
 			consensuser.State = MayCommit
 			consensuser.VotedSet.Clear()
-			// TODO: make example where it provides benefits
 			consensuser.VotedSet.Insert(uint32(consensuser.Id))
 			consensuser.doBroadcast()
 		}
@@ -128,6 +127,7 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 }
 
 func (consensuser *CalmConsensuser) OnCommit() {
+	log.Printf("Consensuser [%d] has committed:\n", consensuser.Id)
 	consensuser.CommitSet(consensuser.CarriesSet)
 	consensuser.Broadcast(consensuser.newCommitMessage())
 	consensuser.PrepareNextStep()

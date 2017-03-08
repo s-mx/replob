@@ -4,6 +4,7 @@ import (
 	cont "github.com/s-mx/replob/containers"
 	"testing"
 	"math/rand"
+	"log"
 )
 
 func TestOneNode(t *testing.T) {
@@ -217,6 +218,10 @@ func TestDisconnectThreeNodes(t *testing.T) {
 }
 
 func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnects int, t *testing.T) {
+	if numberDisconnects * 2 > numberNodes {
+		log.Fatalf("%d disconnected nodes can become the majority of %d nodes", numberDisconnects, numberNodes)
+	}
+
 	Source := rand.NewSource(42)
 	generator := rand.New(Source)
 
@@ -240,7 +245,6 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 	for numberProposedCarries != numberCarries {
 		for true {
 			flag := false
-			// FIXME: consider checking majority separately
 			// Disconnect this
 			if subsetDisconnectedNodes.Size() > 0 &&  generator.Float32() < 0.01 {
 				indDisconnect := subsetDisconnectedNodes.Get(0)
@@ -261,12 +265,13 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 				}
 			}
 
-			// FIXME: check for numberProposedCarries < numberCarries firstly
-			ind := helper.findIndLastCommit(numberProposedCarries)
-			if ind != -1 && numberProposedCarries < numberCarries {
-				consensusers[ind].Propose(carries[numberProposedCarries])
-				numberProposedCarries += 1
-				continue
+			if numberProposedCarries < numberCarries {
+				ind := helper.findIndLastCommit(numberProposedCarries)
+				if ind != -1 {
+					consensusers[ind].Propose(carries[numberProposedCarries])
+					numberProposedCarries += 1
+					continue
+				}
 			}
 
 			if flag == false {
