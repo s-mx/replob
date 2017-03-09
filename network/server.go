@@ -10,12 +10,12 @@ import (
 )
 
 type ServerService struct {
-	id				int
-	nameServer		string
-	service			string
-	channelMessage	chan cont.Message
-	channelStop		chan int // FIXME: consider using interface{}
-	semaphore		sync.WaitGroup
+	id             int
+	nameServer     string
+	service        string
+	channelMessage chan cont.Message
+	channelStop    chan interface{}
+	waitGroup      sync.WaitGroup
 }
 
 func NewServerService(id int, config Configuration) *ServerService {
@@ -23,14 +23,14 @@ func NewServerService(id int, config Configuration) *ServerService {
 		id:id,
 		nameServer:config.nameServer,
 		service:config.serviceServer,
-		channelMessage:make(chan cont.Message, 1), // FIXME: 1
+		channelMessage:make(chan cont.Message, 10), // TODO: use flags
 	}
 }
 
-func (service *ServerService) handleMessage(conn *net.TCPConn) {
+func (service *ServerService) handleConnection(conn *net.TCPConn) {
 	// FIXME: resuse connection in for {} loop
 	defer conn.Close()
-	defer service.semaphore.Done()
+	defer service.waitGroup.Done()
 
 	var message cont.Message
 	// TODO: realize normal serialization
@@ -40,14 +40,18 @@ func (service *ServerService) handleMessage(conn *net.TCPConn) {
 }
 
 func (service *ServerService) Serve(listener *net.TCPListener) {
-	defer service.semaphore.Done()
+	defer service.waitGroup.Done()
 	for {
+		var more bool
 		select {
-		case <-service.channelStop:
+		case _, more = <-service.channelStop:
+		default:
+		}
+
+		if more == false {
 			log.Printf("INFO server[%d]: stopping listening\n", service.id)
 			listener.Close()
 			return
-		default:
 		}
 
 		listener.SetDeadline(time.Now().Add(500 * time.Microsecond))
@@ -62,8 +66,8 @@ func (service *ServerService) Serve(listener *net.TCPListener) {
 
 		conn.RemoteAddr()
 		log.Printf("INFO server[%d]: %s\n", service.id, conn.RemoteAddr().String())
-		service.semaphore.Add(1)
-		go service.handleMessage(conn) // FIXME: rename to acceptConnection or handleConnection
+		service.waitGroup.Add(1)
+		go service.handleConnection(conn)
 	}
 }
 
@@ -71,14 +75,14 @@ func (service *ServerService) Start() {
 	laddr, err := net.ResolveTCPAddr("tcp", service.service)
 	checkError(err)
 	listener, err := net.ListenTCP("tcp", laddr)
-	service.logStart() // FIXME: inline this
-	service.semaphore.Add(1) // FIXME: use channel
+	log.Printf("INFO: server %s just started\n", service.nameServer)
+	service.waitGroup.Add(1)
 	go service.Serve(listener)
 }
 
 func (service *ServerService) Stop() {
-	service.channelStop<-0 // FIXME: use close instead, see client
-	service.semaphore.Wait()
+	close(service.channelStop)
+	service.waitGroup.Wait()
 }
 
 func (service* ServerService) logStart() {

@@ -1,21 +1,19 @@
 package network
 
 import (
-	calmConsensus "github.com/s-mx/replob/consensuser"
+	consensus "github.com/s-mx/replob/consensuser"
 	cont    "github.com/s-mx/replob/containers"
 	"log"
 )
 
 type NetworkDispatcher struct {
-	calmConsensus.Dispatcher
+	consensus.Dispatcher
 	id             			int
 	config         			Configuration
-	channelServer			chan string // FIXME: remove
-	channelServerMessage	chan cont.Message // FIXME: remove
 	ServerService			*ServerService
 	ClientServices			[]*ClientService
 
-	cons					*calmConsensus.CalmConsensuser
+	cons					consensus.Consensuser
 
 	myStepId				cont.StepId
 	myStamp					cont.Stamp
@@ -23,7 +21,6 @@ type NetworkDispatcher struct {
 	isRunning     			bool
 }
 
-// FIXME: use Consensuser instance (interface) here
 func NewNetworkDispatcher(id int, config Configuration) *NetworkDispatcher {
 	ptr := &NetworkDispatcher{
 		id:id,
@@ -57,8 +54,7 @@ func (dispatcher *NetworkDispatcher) RunClients() {
 	}
 }
 
-// FIXME: Use consistent names, see services .Start()
-func (dispatcher *NetworkDispatcher) Run() {
+func (dispatcher *NetworkDispatcher) Start() {
 	if dispatcher.cons == nil {
 		log.Panicf("ERROR dispatcher[%d]: consensuser isn't created\n", dispatcher.id)
 	}
@@ -114,7 +110,6 @@ func (dispatcher *NetworkDispatcher) Broadcast(message cont.Message) {
 			continue
 		}
 
-		// FIXME: increase size of channel to avoid blocking
 		// FIXME: in case of blocking just drop the message
 		// In future we need something else for that.
 		// May be set high buffer for channel.

@@ -7,9 +7,5 @@ import (
 )
 
 func TestSendSimpleMessage(t *testing.T) {
-	message := cont.NewEmptyMessage()
 
-	NewLocalServer(":2000")
-	SendMessage(":2000", message)
-	time.Sleep(time.Second)
 }
