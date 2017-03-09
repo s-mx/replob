@@ -97,7 +97,7 @@ func (dispatcher *TestLocalDispatcher) OnReceive(message cont.Message) {
 
 	if message.StepId > dispatcher.myStepId {
 		dispatcher.isRunning = false
-		log.Printf("WARNING: StepId of dispatcher is outdated: Message StepId=%d, dispatcher StepId=%d\n", message.StepId, dispatcher.myStepId)
+		log.Printf("WARNING: StepId of dispatcher[%d] is outdated: Message StepId=%d, dispatcher StepId=%d\n", dispatcher.nodeId, message.StepId, dispatcher.myStepId)
 		return
 	}
 

@@ -100,9 +100,11 @@ func TestThreeNodes(t *testing.T) {
 	}
 }
 
-func RunRandomTest(numberNodes int, numberCarries int, t *testing.T) {
-	Source := rand.NewSource(42)
+func RunRandomTest(numberNodes int, numberCarries int, seed int64, t *testing.T) {
+	Source := rand.NewSource(seed)
 	generator := rand.New(Source)
+
+	log.Printf("===START TEST===")
 
 	conf := NewMasterlessConfiguration(uint32(numberNodes))
 	carries := cont.NewCarriesN(numberCarries)
@@ -161,23 +163,33 @@ func RunRandomTest(numberNodes int, numberCarries int, t *testing.T) {
 }
 
 func TestRandomMessages2(t *testing.T) {
-	RunRandomTest(2, 1, t)
+	for seed := int64(1); seed <= 42; seed++ {
+		RunRandomTest(2, 1, seed, t)
+	}
 }
 
 func TestRandomMessages5(t *testing.T) {
-	RunRandomTest(5, 10, t)
+	for seed := int64(1); seed <= 42; seed++ {
+		RunRandomTest(5, 10, seed, t)
+	}
 }
 
 func TestRandomMessages5_100(t *testing.T) {
-	RunRandomTest(5, 100, t)
+	for seed := int64(1); seed <= 42; seed++ {
+		RunRandomTest(5, 100, seed, t)
+	}
 }
 
 func TestRandomMessages10_10(t *testing.T) {
-	RunRandomTest(10, 10, t)
+	for seed := int64(1); seed <= 42; seed++ {
+		RunRandomTest(10, 10, seed, t)
+	}
 }
 
 func TestRandomMessages10_100(t *testing.T) {
-	RunRandomTest(10, 100, t)
+	for seed := int64(1); seed <= 42; seed++ {
+		RunRandomTest(10, 100, seed, t)
+	}
 }
 
 func TestDisconnectThreeNodes(t *testing.T) {
@@ -217,12 +229,26 @@ func TestDisconnectThreeNodes(t *testing.T) {
 	}
 }
 
-func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnects int, t *testing.T) {
+func DisconnectNode(subsetDisconnectedNodes *cont.Set, indDisconnect uint32, LocalDispatchers []*TestLocalDispatcher,
+					numberNodes int, consensusers []*CalmConsensuser) {
+	subsetDisconnectedNodes.Erase(indDisconnect)
+
+	LocalDispatchers[indDisconnect].Stop()
+	for ind := 0; ind < numberNodes; ind++ {
+		if LocalDispatchers[ind].IsRunning() {
+			consensusers[ind].OnDisconnect(cont.NodeId(indDisconnect))
+		}
+	}
+}
+
+func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnects int, seed int64, t *testing.T) {
 	if numberDisconnects * 2 > numberNodes {
 		log.Fatalf("%d disconnected nodes can become the majority of %d nodes", numberDisconnects, numberNodes)
 	}
 
-	Source := rand.NewSource(42)
+	log.Printf("===START TEST===")
+
+	Source := rand.NewSource(seed)
 	generator := rand.New(Source)
 
 	conf := NewMasterlessConfiguration(uint32(numberNodes))
@@ -241,21 +267,20 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 
 	consensusers[0].Propose(carries[0])
 
+	indLastPropose := uint32(0)
 	numberProposedCarries := 1
 	for numberProposedCarries != numberCarries {
 		for true {
 			flag := false
 			// Disconnect this
-			if subsetDisconnectedNodes.Size() > 0 &&  generator.Float32() < 0.01 {
+			if subsetDisconnectedNodes.Size() > 0 &&  generator.Float32() < 0.05 {
 				indDisconnect := subsetDisconnectedNodes.Get(0)
-				subsetDisconnectedNodes.Erase(indDisconnect)
+				if indDisconnect == indLastPropose && subsetDisconnectedNodes.Size() > 1 {
+					indDisconnect = subsetDisconnectedNodes.Get(1)
+				}
 
-
-				LocalDispatchers[indDisconnect].Stop()
-				for ind := 0; ind < numberNodes; ind++ {
-					if LocalDispatchers[ind].IsRunning() {
-						consensusers[ind].OnDisconnect(cont.NodeId(indDisconnect))
-					}
+				if indDisconnect != indLastPropose {
+					DisconnectNode(&subsetDisconnectedNodes, indDisconnect, LocalDispatchers, numberNodes, consensusers)
 				}
 			}
 
@@ -269,6 +294,7 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 				ind := helper.findIndLastCommit(numberProposedCarries)
 				if ind != -1 {
 					consensusers[ind].Propose(carries[numberProposedCarries])
+					indLastPropose = uint32(ind)
 					numberProposedCarries += 1
 					continue
 				}
@@ -299,19 +325,27 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 }
 
 func TestRandomDisconnect5(t *testing.T) {
-	RunRandomDisconnectTest(5, 10, 2, t)
+	for seed := int64(1); seed <= 42; seed++ {
+		RunRandomDisconnectTest(5, 10, 2, seed, t)
+	}
 }
 
 func TestRandomDisconnect5_100(t *testing.T) {
-	RunRandomDisconnectTest(5, 100, 2, t)
+	for seed := int64(1); seed <= 42; seed++ {
+		RunRandomDisconnectTest(5, 100, 2, seed, t)
+	}
 }
 
 func TestRandomDisconnect10_10(t *testing.T) {
-	RunRandomDisconnectTest(10, 10, 4, t)
+	for seed := int64(1); seed <= 42; seed++ {
+		RunRandomDisconnectTest(10, 10, 4, seed, t)
+	}
 }
 
 func TestRandomDisconnect10_100(t *testing.T) {
-	RunRandomDisconnectTest(10, 100, 4, t)
+	for seed := int64(1); seed <= 42; seed++ {
+		RunRandomDisconnectTest(10, 100, 4, seed, t)
+	}
 }
 
 /*

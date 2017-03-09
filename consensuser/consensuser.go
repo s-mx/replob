@@ -69,6 +69,7 @@ func (consensuser *CalmConsensuser) Propose(carry cont.Carry) {
 		log.Fatalf("state of consenuser %d isn't Initial on propose", consensuser.Id)
 	}
 
+	log.Printf("Consensuser [%d]: Propose %d", consensuser.Id, carry.Id)
 	consensuser.OnVote(consensuser.newVote(carry))
 }
 
@@ -150,6 +151,11 @@ func (consensuser *CalmConsensuser) PrepareNextStep() {
 }
 
 func (consensuser *CalmConsensuser) OnDisconnect(idFrom cont.NodeId) {
+	if consensuser.CurrentNodes.Consist(uint32(idFrom)) == false {
+		return
+	}
+
+	log.Printf("Consensuser [%d]: Disconnect %d node", consensuser.Id, int(idFrom))
 	disconnectedSet := cont.NewSetFromValue(uint32(idFrom))
 	consensuser.OnVote(cont.NewMessageVote(consensuser.CarriesSet,
 		                                   consensuser.VotedSet.Diff(disconnectedSet),
