@@ -96,7 +96,7 @@ func (dispatcher *TestLocalDispatcher) OnReceive(message cont.Message) {
 	}
 
 	if message.StepId > dispatcher.myStepId {
-		dispatcher.isRunning = false
+		//dispatcher.isRunning = false // FIXME: продолжить работать, запросить прошлый коммит
 		log.Printf("WARNING: StepId of dispatcher[%d] is outdated: Message StepId=%d, dispatcher StepId=%d\n", dispatcher.nodeId, message.StepId, dispatcher.myStepId)
 		return
 	}

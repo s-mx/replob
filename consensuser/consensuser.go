@@ -128,7 +128,7 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 }
 
 func (consensuser *CalmConsensuser) OnCommit() {
-	log.Printf("Consensuser [%d] has committed:\n", consensuser.Id)
+	log.Printf("Consensuser [%d] has committed:", consensuser.Id)
 	consensuser.CommitSet(consensuser.CarriesSet)
 	consensuser.Broadcast(consensuser.newCommitMessage())
 	consensuser.PrepareNextStep()

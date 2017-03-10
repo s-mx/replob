@@ -246,7 +246,7 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 		log.Fatalf("%d disconnected nodes can become the majority of %d nodes", numberDisconnects, numberNodes)
 	}
 
-	log.Printf("===START TEST===")
+	log.Printf("===START TEST===   seed: %d", seed)
 
 	Source := rand.NewSource(seed)
 	generator := rand.New(Source)
@@ -320,11 +320,13 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 	}
 
 	if helper.CheckSafety() == false {
-		t.Error("Carry isn't committed")
+		t.Fatal("Carry isn't committed")
 	}
 }
 
 func TestRandomDisconnect5(t *testing.T) {
+	//RunRandomDisconnectTest(5, 10, 2, 22, t)
+
 	for seed := int64(1); seed <= 42; seed++ {
 		RunRandomDisconnectTest(5, 10, 2, seed, t)
 	}
