@@ -4,6 +4,7 @@ import (
 	consensus "github.com/s-mx/replob/consensuser"
 	cont    "github.com/s-mx/replob/containers"
 	"log"
+	"sync"
 )
 
 type NetworkDispatcher struct {
@@ -18,13 +19,21 @@ type NetworkDispatcher struct {
 	myStepId				cont.StepId
 	myStamp					cont.Stamp
 	nodesStamps				[]cont.Stamp
+
+	channelLoopEnd			chan interface{}
+
+	// Есть функция Stop, которую может позвать и консэнсусер и пользователь диспетчера
+	// Для исключительного доступа используется мьютекс
 	isRunning     			bool
+	mutexRunning			sync.Mutex
+
+	waitGroup				sync.WaitGroup
 }
 
-func NewNetworkDispatcher(id int, config Configuration) *NetworkDispatcher {
+func NewNetworkDispatcher(id int, config *Configuration) *NetworkDispatcher {
 	ptr := &NetworkDispatcher{
 		id:id,
-		config:config,
+		config:*config,
 		ClientServices:make([]*ClientService, config.numberNodes),
 		myStepId:0,
 		myStamp:0,
@@ -37,14 +46,14 @@ func NewNetworkDispatcher(id int, config Configuration) *NetworkDispatcher {
 			continue
 		}
 
-		ptr.ClientServices[ind] = NewClientService(id, config.serviceClient[ind])
+		ptr.ClientServices[ind] = NewClientService(id, config.serviceServer[ind])
 	}
 
 	ptr.ServerService = NewServerService(id, config)
 	return ptr
 }
 
-func (dispatcher *NetworkDispatcher) RunClients() {
+func (dispatcher *NetworkDispatcher) StartClients() {
 	for ind := 0; ind < dispatcher.config.numberNodes; ind++ {
 		if ind == dispatcher.id {
 			continue
@@ -54,22 +63,66 @@ func (dispatcher *NetworkDispatcher) RunClients() {
 	}
 }
 
+func (dispatcher *NetworkDispatcher) Loop() {
+	defer dispatcher.waitGroup.Done()
+
+	for {
+		var more bool
+		select {
+		case _, more = <-dispatcher.channelLoopEnd:
+		default:
+		}
+
+		if more == false {
+			return
+		}
+
+		message := <-dispatcher.ServerService.channelMessage
+		dispatcher.OnReceive(message)
+	}
+}
+
 func (dispatcher *NetworkDispatcher) Start() {
+	defer dispatcher.mutexRunning.Unlock()
+	dispatcher.mutexRunning.Lock()
+
 	if dispatcher.cons == nil {
 		log.Panicf("ERROR dispatcher[%d]: consensuser isn't created\n", dispatcher.id)
 	}
 
-	dispatcher.RunClients()
+	if dispatcher.isRunning {
+		return
+	}
+
+	dispatcher.StartClients()
 	dispatcher.ServerService.Start()
 
 	dispatcher.isRunning = true
 
-	// FIXME: extract to another method: Loop()
-	// FIXME: check for stopping
-	for {
-		message := <-dispatcher.ServerService.channelMessage
-		dispatcher.OnReceive(message)
+	dispatcher.waitGroup.Add(1)
+	go dispatcher.Loop()
+}
+
+func (dispatcher *NetworkDispatcher) Stop() {
+	defer dispatcher.mutexRunning.Unlock()
+	dispatcher.mutexRunning.Lock()
+	if dispatcher.isRunning == false {
+		log.Panicf("Dispatcher isn't working") // Консэнсусер может сюда войти
 	}
+
+	close(dispatcher.channelLoopEnd)
+	dispatcher.waitGroup.Wait()
+
+	dispatcher.ServerService.Stop()
+	for ind := 0; ind < dispatcher.config.numberNodes; ind++ {
+		if ind == dispatcher.id {
+			continue
+		}
+
+		dispatcher.ClientServices[ind].Stop()
+	}
+
+	dispatcher.isRunning = false
 }
 
 func (dispatcher *NetworkDispatcher) messageIsOutdated(message cont.Message) bool {
@@ -121,24 +174,14 @@ func (dispatcher *NetworkDispatcher) IncStep() {
 	dispatcher.myStepId += 1
 }
 
-func (dispatcher *NetworkDispatcher) Stop() {
-	dispatcher.isRunning = false
-	dispatcher.ServerService.Stop()
-	for ind := 0; ind < dispatcher.config.numberNodes; ind++ {
-		if ind == dispatcher.id {
-			continue
-		}
-
-		dispatcher.ClientServices[ind].Stop()
-	}
-}
-
 func (dispatcher *NetworkDispatcher) nextStamp() cont.Stamp {
 	dispatcher.myStamp += 1
 	return dispatcher.myStamp
 }
 
 func (dispatcher *NetworkDispatcher) IsRunning() bool {
+	defer dispatcher.mutexRunning.Unlock()
+	dispatcher.mutexRunning.Lock()
 	return dispatcher.isRunning
 }
 

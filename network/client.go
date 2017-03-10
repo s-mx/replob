@@ -9,10 +9,15 @@ import (
 )
 
 type ClientService struct {
-	id             int
-	service        string
-	channelMessage chan cont.Message
-	waitGroup      sync.WaitGroup
+	id				int
+	service			string
+	channelMessage	chan cont.Message
+	waitGroup		sync.WaitGroup
+
+	connection		*net.TCPConn
+
+	isRunning		bool
+	mutexRunning	sync.Mutex
 }
 
 func NewClientService(id int, service string) *ClientService {
@@ -20,11 +25,21 @@ func NewClientService(id int, service string) *ClientService {
 		id:id,
 		service:service,
 		channelMessage:make(chan cont.Message, 10), // FIXME: use flags instead
+		isRunning:false,
 	}
 }
 
 func (service *ClientService) start() {
 	defer service.waitGroup.Done()
+
+	var raddr *net.TCPAddr
+	var err error
+	raddr, err = net.ResolveTCPAddr("tcp", service.service)
+	service.connection, err = net.DialTCP("tcp", nil, raddr)
+	if err != nil {
+		log.Printf(err.Error())
+		return
+	}
 
 	for {
 		var message cont.Message
@@ -40,20 +55,28 @@ func (service *ClientService) start() {
 			return
 		}
 
-		// FIXME: reuse connection
 		// FIXME: implement reconnection and appropriate error handling
-		conn, err := net.Dial("tcp", service.service)
 		checkError(err)
-		err = gob.NewEncoder(conn).Encode(message)
+		err = gob.NewEncoder(service.connection).Encode(message)
+		// TODO: понять какие ошибки обрабатывать
 	}
 }
 
 func (service *ClientService) Start() {
+	defer service.mutexRunning.Unlock()
+	service.mutexRunning.Lock()
 	service.waitGroup.Add(1)
 	go service.start()
 }
 
 func (service *ClientService) Stop() {
+	defer service.mutexRunning.Unlock()
+	service.mutexRunning.Lock()
+
+	if service.isRunning == false {
+		return
+	}
+
 	close(service.channelMessage)
 	service.waitGroup.Wait()
 }
