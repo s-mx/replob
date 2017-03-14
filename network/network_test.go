@@ -2,14 +2,22 @@ package network
 
 import (
 	"testing"
-	"time"
-	cont "github.com/s-mx/replob/containers"
 )
 
 func TestSendSimpleMessage(t *testing.T) {
-	message := cont.NewEmptyMessage()
+	conf := NewLocalNetConfiguration(2)
+	client1 := NewClientService(0, conf.serviceServer[1])
+	client2 := NewClientService(1, conf.serviceServer[0])
+	server1 := NewServerService(0, conf)
+	server2 := NewServerService(1, conf)
 
-	NewLocalServer(":2000")
-	SendMessage(":2000", message)
-	time.Sleep(time.Second)
+	server1.Start()
+	server2.Start()
+	client1.Start()
+	client2.Start()
+
+	client1.Stop()
+	client2.Stop()
+	server1.Stop()
+	server2.Stop()
 }
