@@ -83,6 +83,7 @@ func (service *ServerService) handleConnection(id int, channels TwoWayChannel, c
 
 func (service *ServerService) Serve(listener *net.TCPListener) {
 	defer service.waitGroup.Done()
+	// FIXME: defer listener.close()
 
 	numberClient := 0
 	for {
@@ -104,6 +105,7 @@ func (service *ServerService) Serve(listener *net.TCPListener) {
 			log.Printf("WARNING: %s", err)
 		}
 
+		// TODO: переподключение реализуется на стороне клиента
 		conn.RemoteAddr()
 		log.Printf("INFO server[%d]: %s\n", service.id, conn.RemoteAddr().String())
 		service.waitGroup.Add(1)

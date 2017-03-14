@@ -69,7 +69,7 @@ func (dispatcher *NetworkDispatcher) Loop() {
 	for {
 		var more bool
 		select {
-		case _, more = <-dispatcher.channelLoopEnd:
+		case _, more = <-dispatcher.channelLoopEnd: // FIXME: проверка на close не правильная
 		default:
 		}
 
@@ -77,7 +77,7 @@ func (dispatcher *NetworkDispatcher) Loop() {
 			return
 		}
 
-		message := <-dispatcher.ServerService.channelMessage
+		message := <-dispatcher.ServerService.channelMessage // FIXME: select
 		dispatcher.OnReceive(message)
 	}
 }
@@ -104,7 +104,7 @@ func (dispatcher *NetworkDispatcher) Start() {
 }
 
 func (dispatcher *NetworkDispatcher) Stop() {
-	defer dispatcher.mutexRunning.Unlock()
+	defer dispatcher.mutexRunning.Unlock() // FIXME: заменить на channel
 	dispatcher.mutexRunning.Lock()
 	if dispatcher.isRunning == false {
 		log.Panicf("Dispatcher isn't working") // Консэнсусер может сюда войти

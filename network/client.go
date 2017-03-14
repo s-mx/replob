@@ -45,7 +45,7 @@ func (service *ClientService) start() {
 		var message cont.Message
 		var more bool
 		select {
-		case message, more = <-service.channelMessage:
+		case message, more = <-service.channelMessage: // FIXME: channel Stop
 		default:
 			continue
 		}
@@ -59,6 +59,10 @@ func (service *ClientService) start() {
 		checkError(err)
 		err = gob.NewEncoder(service.connection).Encode(message)
 		// TODO: понять какие ошибки обрабатывать
+		// Логируем все ошибки
+		// проверяем io.EOF, Timeout
+		// Ставим Timeout на запись, кастуем к OpError, проверяем Timeout()
+		// пересоздаем соединение
 	}
 }
 
@@ -70,7 +74,7 @@ func (service *ClientService) Start() {
 }
 
 func (service *ClientService) Stop() {
-	defer service.mutexRunning.Unlock()
+	defer service.mutexRunning.Unlock() // FIXME: channelStop
 	service.mutexRunning.Lock()
 
 	if service.isRunning == false {
