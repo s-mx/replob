@@ -6,6 +6,7 @@ import (
 	cont "github.com/s-mx/replob/containers"
 	"sync"
 	"log"
+	"time"
 )
 
 type ClientService struct {
@@ -16,21 +17,26 @@ type ClientService struct {
 
 	connection		*net.TCPConn
 
+	channelStop		chan interface{}
+
 	isRunning		bool
-	mutexRunning	sync.Mutex
 }
 
 func NewClientService(id int, service string) *ClientService {
 	return &ClientService{
 		id:id,
 		service:service,
+		channelStop:make(chan interface{}),
 		channelMessage:make(chan cont.Message, 10), // FIXME: use flags instead
 		isRunning:false,
 	}
 }
 
 func (service *ClientService) start() {
-	defer service.waitGroup.Done()
+	defer func() {
+		service.connection.Close()
+		service.waitGroup.Done()
+	}()
 
 	var raddr *net.TCPAddr
 	var err error
@@ -42,17 +48,17 @@ func (service *ClientService) start() {
 	}
 
 	for {
-		var message cont.Message
-		var more bool
 		select {
-		case message, more = <-service.channelMessage: // FIXME: channel Stop
+		case <-service.channelStop:
+			return
 		default:
-			continue
 		}
 
-		if more == false {
-			log.Printf("INFO client server[%d]: stopping working\n", service.id)
-			return
+		var message cont.Message
+		select {
+		case message = <-service.channelMessage:
+		case <-time.After(time.Second):
+			continue
 		}
 
 		// FIXME: implement reconnection and appropriate error handling
@@ -67,26 +73,19 @@ func (service *ClientService) start() {
 }
 
 func (service *ClientService) Start() {
-	defer service.mutexRunning.Unlock()
-	service.mutexRunning.Lock()
+	service.isRunning = true
+	log.Printf("Client [%d] just started", service.id)
 	service.waitGroup.Add(1)
 	go service.start()
 }
 
 func (service *ClientService) Stop() {
-	defer service.mutexRunning.Unlock() // FIXME: channelStop
-	service.mutexRunning.Lock()
-
 	if service.isRunning == false {
 		return
 	}
 
-	close(service.channelMessage)
+	service.isRunning = false
+	service.channelStop<-0
 	service.waitGroup.Wait()
-}
-
-func NewClient(service string) net.Conn {
-	conn, err := net.Dial("tcp", service)
-	checkError(err)
-	return conn
+	log.Printf("Client [%d]: stop working", service.id)
 }

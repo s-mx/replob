@@ -9,61 +9,56 @@ import (
 	"time"
 	"io"
 	"bytes"
+	"sync/atomic"
 )
 
-type TwoWayChannel struct {
-	forward, backward	chan interface{}
-}
-
-func NewTwoWayChannel() TwoWayChannel {
-	return TwoWayChannel{
-		forward:make(chan interface{}),
-		backward:make(chan interface{}),
-	}
-}
-
 type ServerService struct {
-	id				int
-	service			string
-	channelMessage	chan cont.Message
-	channelStop		chan interface{}
-	waitGroup		sync.WaitGroup
+	id					int
+	service				string
+	channelMessage		chan cont.Message
+	channelStop			chan interface{}
+	waitGroup			sync.WaitGroup
+	waitGroupHandlers	sync.WaitGroup
 
-	channelsToClients	map[int]TwoWayChannel
+	numberClients		int
+	flagClose			*int32
 
-	isRunning		bool
-	mutexRunning	sync.Mutex
+	isRunning			bool
+	mutexRunning		sync.Mutex
 }
 
 func NewServerService(id int, config *Configuration) *ServerService {
+	tmpFlagClose := int32(0)
 	return &ServerService{
 		id:id,
 		service:config.serviceServer[id],
 		channelMessage:make(chan cont.Message, 10), // TODO: use flags
 		channelStop:make(chan interface{}),
+		numberClients:0,
+		flagClose:&tmpFlagClose,
 	}
 }
 
-func (service *ServerService) handleConnection(id int, channels TwoWayChannel, conn *net.TCPConn) {
-	defer conn.Close()
-	defer close(channels.backward) // Проверить
-	defer service.waitGroup.Done()
+func (service *ServerService) handleConnection(id int, conn *net.TCPConn) {
+	defer func() {
+		log.Printf("Client [%d]: stopping working", service.id)
+		conn.Close()
+		service.waitGroupHandlers.Done()
+		service.waitGroup.Done()
+	}()
 
 	for {
-		select {
-		case <-channels.forward:
+		if atomic.LoadInt32(service.flagClose) != 0 {
+			log.Printf("Handler [%d]: stop working", service.id)
 			return
-		default:
 		}
 
 		conn.SetDeadline(time.Now().Add(500 * time.Microsecond))
 
 		var message cont.Message
-		// TODO: realize normal serialization
 		var buffer bytes.Buffer
-		_, err := conn.Read(buffer.Bytes())
-		_ = gob.NewDecoder(&buffer).Decode(&message)
-		if err == io.EOF {
+		var err error
+		if _, err := conn.Read(buffer.Bytes()); err == io.EOF {
 			return
 		}
 
@@ -72,27 +67,39 @@ func (service *ServerService) handleConnection(id int, channels TwoWayChannel, c
 				continue
 			}
 
-			log.Printf("Network Error")
-			channels.backward<-0
+			log.Printf("Network Error: %s", err.Error())
 			return
 		}
 
-		service.channelMessage <- message
+		checkError(err)
+
+		// TODO: realize normal serialization
+		_ = gob.NewDecoder(&buffer).Decode(&message)
+		select {
+		case service.channelMessage<-message:
+		case <-time.After(time.Second):
+			log.Printf("Server [%d]: The message is lost", service.id)
+		}
 	}
 }
 
-func (service *ServerService) Serve(listener *net.TCPListener) {
-	defer service.waitGroup.Done()
-	// FIXME: defer listener.close()
+func (service *ServerService) goHandler(id int, conn *net.TCPConn) {
+	service.waitGroup.Add(1)
+	service.waitGroupHandlers.Add(1)
+	go service.handleConnection(id, conn)
+}
 
-	numberClient := 0
+func (service *ServerService) Serve(listener *net.TCPListener) {
+	defer func(){
+		service.waitGroup.Done()
+		listener.Close()
+	}()
+
 	for {
-		select {
-		case _ = <-service.channelStop: // Нужно остановить хендлеры
-			log.Printf("INFO server[%d]: stopping listening\n", service.id)
-			listener.Close()
+		if atomic.LoadInt32(service.flagClose) != 0 {
+			log.Printf("Server [%d]: waiting for handlers", service.id)
+			service.waitGroupHandlers.Wait()
 			return
-		default:
 		}
 
 		listener.SetDeadline(time.Now().Add(500 * time.Microsecond))
@@ -105,14 +112,10 @@ func (service *ServerService) Serve(listener *net.TCPListener) {
 			log.Printf("WARNING: %s", err)
 		}
 
-		// TODO: переподключение реализуется на стороне клиента
 		conn.RemoteAddr()
 		log.Printf("INFO server[%d]: %s\n", service.id, conn.RemoteAddr().String())
-		service.waitGroup.Add(1)
-		channel := NewTwoWayChannel()
-		service.channelsToClients[numberClient] = channel
-		go service.handleConnection(numberClient, channel, conn)
-		numberClient += 1
+		service.goHandler(service.numberClients, conn)
+		service.numberClients += 1
 	}
 }
 
@@ -129,6 +132,7 @@ func (service *ServerService) Start() {
 	laddr, err := net.ResolveTCPAddr("tcp", service.service)
 	checkError(err)
 	listener, err := net.ListenTCP("tcp", laddr)
+	checkError(err)
 	log.Printf("INFO: server [%d] just started\n", service.id)
 	service.waitGroup.Add(1)
 	go service.Serve(listener)
@@ -137,13 +141,15 @@ func (service *ServerService) Start() {
 func (service *ServerService) Stop() {
 	defer service.mutexRunning.Unlock()
 	service.mutexRunning.Lock()
+
 	if service.isRunning == false {
 		return
 	}
 
 	service.isRunning = false
-	close(service.channelStop)
+	atomic.StoreInt32(service.flagClose, 1)
 	service.waitGroup.Wait()
+	log.Printf("Server [%d]: stop working", service.id)
 }
 
 func checkError(err error) {
