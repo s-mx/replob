@@ -128,7 +128,7 @@ func (dispatcher *TestLocalDispatcher) proceedFirstMessage(toId int) {
 	dispatcher.dispatchers[toId].OnReceive(message)
 }
 
-func (dispatcher *TestLocalDispatcher) proceedRandomMessage(generator *rand.Rand) bool {
+func (dispatcher *TestLocalDispatcher) proceedRandomMessage(generator *rand.Rand, probSwap float32) bool {
 	if dispatcher.IsRunning() == false {
 		return false
 	}
@@ -139,7 +139,7 @@ func (dispatcher *TestLocalDispatcher) proceedRandomMessage(generator *rand.Rand
 			continue
 		}
 
-		if dispatcher.queues[ind].Size() >= 2 && generator.Float32() < 0.5 {
+		if dispatcher.queues[ind].Size() >= 2 && generator.Float32() < probSwap {
 			dispatcher.queues[ind].Swap(0, 1)
 		}
 

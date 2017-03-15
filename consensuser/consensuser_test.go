@@ -126,7 +126,7 @@ func RunRandomTest(numberNodes int, numberCarries int, seed int64, t *testing.T)
 		for true {
 			flag := false
 			for ind := 0; ind < numberNodes; ind++ {
-				if LocalDispatchers[ind].proceedRandomMessage(generator) == true {
+				if LocalDispatchers[ind].proceedRandomMessage(generator, 0) == true {
 					flag = true
 				}
 			}
@@ -147,7 +147,7 @@ func RunRandomTest(numberNodes int, numberCarries int, seed int64, t *testing.T)
 	for true {
 		flag := false
 		for ind := 0; ind < numberNodes; ind++ {
-			if LocalDispatchers[ind].proceedRandomMessage(generator) == true {
+			if LocalDispatchers[ind].proceedRandomMessage(generator, 0) == true {
 				flag = true
 			}
 		}
@@ -229,6 +229,11 @@ func TestDisconnectThreeNodes(t *testing.T) {
 	}
 }
 
+type Probabilities struct {
+	probDisconnect	float32
+	probSwap		float32
+}
+
 func DisconnectNode(subsetDisconnectedNodes *cont.Set, indDisconnect uint32, LocalDispatchers []*TestLocalDispatcher,
 					numberNodes int, consensusers []*CalmConsensuser) {
 	subsetDisconnectedNodes.Erase(indDisconnect)
@@ -241,7 +246,7 @@ func DisconnectNode(subsetDisconnectedNodes *cont.Set, indDisconnect uint32, Loc
 	}
 }
 
-func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnects int, seed int64, t *testing.T) {
+func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnects int, seed int64, prob Probabilities, t *testing.T) {
 	if numberDisconnects * 2 > numberNodes {
 		log.Fatalf("%d disconnected nodes can become the majority of %d nodes", numberDisconnects, numberNodes)
 	}
@@ -273,7 +278,7 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 		for true {
 			flag := false
 			// Disconnect this
-			if subsetDisconnectedNodes.Size() > 0 &&  generator.Float32() < 0.05 {
+			if subsetDisconnectedNodes.Size() > 0 &&  generator.Float32() < prob.probDisconnect {
 				indDisconnect := subsetDisconnectedNodes.Get(0)
 				if indDisconnect == indLastPropose && subsetDisconnectedNodes.Size() > 1 {
 					indDisconnect = subsetDisconnectedNodes.Get(1)
@@ -285,7 +290,7 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 			}
 
 			for ind := 0; ind < numberNodes; ind++ {
-				if LocalDispatchers[ind].proceedRandomMessage(generator) == true {
+				if LocalDispatchers[ind].proceedRandomMessage(generator, prob.probSwap) == true {
 					flag = true
 				}
 			}
@@ -309,7 +314,7 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 	for true {
 		flag := false
 		for ind := 0; ind < numberNodes; ind++ {
-			if LocalDispatchers[ind].proceedRandomMessage(generator) == true {
+			if LocalDispatchers[ind].proceedRandomMessage(generator, prob.probSwap) == true {
 				flag = true
 			}
 		}
@@ -320,33 +325,36 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 	}
 
 	if helper.CheckSafety() == false {
-		t.Fatal("Carry isn't committed")
+		log.Printf("Carry isn't committed")
+		t.Fatal()
 	}
 }
 
 func TestRandomDisconnect5(t *testing.T) {
-	//RunRandomDisconnectTest(5, 10, 2, 22, t)
-
+	prob := Probabilities{0.05,0.1}
 	for seed := int64(1); seed <= 42; seed++ {
-		RunRandomDisconnectTest(5, 10, 2, seed, t)
+		RunRandomDisconnectTest(5, 10, 2, seed, prob, t)
 	}
 }
 
 func TestRandomDisconnect5_100(t *testing.T) {
+	prob := Probabilities{0.05,0}
 	for seed := int64(1); seed <= 42; seed++ {
-		RunRandomDisconnectTest(5, 100, 2, seed, t)
+		RunRandomDisconnectTest(5, 100, 2, seed, prob, t)
 	}
 }
 
 func TestRandomDisconnect10_10(t *testing.T) {
+	prob := Probabilities{0.05,0}
 	for seed := int64(1); seed <= 42; seed++ {
-		RunRandomDisconnectTest(10, 10, 4, seed, t)
+		RunRandomDisconnectTest(10, 10, 4, seed, prob, t)
 	}
 }
 
 func TestRandomDisconnect10_100(t *testing.T) {
+	prob := Probabilities{0.05,0}
 	for seed := int64(1); seed <= 42; seed++ {
-		RunRandomDisconnectTest(10, 100, 4, seed, t)
+		RunRandomDisconnectTest(10, 100, 4, seed, prob, t)
 	}
 }
 
@@ -359,5 +367,6 @@ Tests TODO:
 	- on limit dropped message on each step: full safety check
 	- on dropped message: if there is no any message in the queues
 	 	=> resend the latest message again to each client from each node
+	- tests with swaps and drops
 2. Propose must be right after commit.
  */
