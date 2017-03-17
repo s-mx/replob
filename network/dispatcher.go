@@ -79,9 +79,10 @@ func (dispatcher *NetworkDispatcher) Loop() {
 		}
 
 		select {
-		case message := <-dispatcher.ServerService.channelMessage: // FIXME: select
+		case message := <-dispatcher.ServerService.channelMessage:
 			dispatcher.OnReceive(message)
-		case <-time.After(100*time.Millisecond):
+			break
+		case <-time.After(100*time.Millisecond): // FIXME: use flags
 		}
 
 		// TODO:
@@ -173,7 +174,7 @@ func (dispatcher *NetworkDispatcher) Broadcast(message cont.Message) {
 			continue
 		}
 
-		// FIXME: in case of blocking just drop the message
+		// FIXME: in case of blocking just drop the message (add select)
 		// In future we need something else for that.
 		// May be set high buffer for channel.
 		dispatcher.ClientServices[ind].channelMessage<-message

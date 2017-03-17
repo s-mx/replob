@@ -8,7 +8,6 @@ import (
 	cont "github.com/s-mx/replob/containers"
 	"time"
 	"io"
-	"bytes"
 	"sync/atomic"
 )
 
@@ -56,9 +55,11 @@ func (service *ServerService) handleConnection(id int, conn *net.TCPConn) {
 		conn.SetDeadline(time.Now().Add(500 * time.Microsecond))
 
 		var message cont.Message
-		var buffer bytes.Buffer
 		var err error
-		if _, err := conn.Read(buffer.Bytes()); err == io.EOF {
+		err = gob.NewDecoder(conn).Decode(&message) // FIXME: consider error checking here
+		if err == io.EOF {
+			// FIXME: add info log
+			log.Printf("EOF")
 			return
 		}
 
@@ -73,12 +74,14 @@ func (service *ServerService) handleConnection(id int, conn *net.TCPConn) {
 
 		checkError(err)
 
-		// TODO: realize normal serialization
-		_ = gob.NewDecoder(&buffer).Decode(&message)
 		select {
 		case service.channelMessage<-message:
-		case <-time.After(time.Second):
+			log.Printf("Server [%d]: Message sent", service.id)
+			break
+		// FIXME: consider removing timeout
+		case <-time.After(time.Second): // FIXME: use flags instead
 			log.Printf("Server [%d]: The message is lost", service.id)
+			break
 		}
 	}
 }
@@ -102,7 +105,7 @@ func (service *ServerService) Serve(listener *net.TCPListener) {
 			return
 		}
 
-		listener.SetDeadline(time.Now().Add(500 * time.Microsecond))
+		listener.SetDeadline(time.Now().Add(500 * time.Microsecond)) // FIXME: use flags
 		conn, err := listener.AcceptTCP()
 		if err != nil {
 			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
@@ -110,6 +113,7 @@ func (service *ServerService) Serve(listener *net.TCPListener) {
 			}
 
 			log.Printf("WARNING: %s", err)
+			// FIXME: add handling
 		}
 
 		conn.RemoteAddr()
@@ -146,6 +150,7 @@ func (service *ServerService) Stop() {
 		return
 	}
 
+	// FIXME: Combine isRunning and flagClose as single atomic variable
 	service.isRunning = false
 	atomic.StoreInt32(service.flagClose, 1)
 	service.waitGroup.Wait()
