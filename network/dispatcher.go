@@ -5,6 +5,7 @@ import (
 	cont    "github.com/s-mx/replob/containers"
 	"log"
 	"sync"
+	"time"
 )
 
 type NetworkDispatcher struct {
@@ -21,6 +22,7 @@ type NetworkDispatcher struct {
 	nodesStamps				[]cont.Stamp
 
 	channelLoopEnd			chan interface{}
+	channelStop				chan interface{}
 
 	// Есть функция Stop, которую может позвать и консэнсусер и пользователь диспетчера
 	// Для исключительного доступа используется мьютекс
@@ -64,22 +66,32 @@ func (dispatcher *NetworkDispatcher) StartClients() {
 }
 
 func (dispatcher *NetworkDispatcher) Loop() {
-	defer dispatcher.waitGroup.Done()
+	defer func() {
+		log.Printf("Dispatcher [%d]: stop working", dispatcher.id)
+		dispatcher.waitGroup.Done()
+	}()
 
 	for {
-		var more bool
 		select {
-		case _, more = <-dispatcher.channelLoopEnd: // FIXME: проверка на close не правильная
+		case <-dispatcher.channelStop:
+			return
 		default:
 		}
 
-		if more == false {
-			return
+		select {
+		case message := <-dispatcher.ServerService.channelMessage: // FIXME: select
+			dispatcher.OnReceive(message)
+		case <-time.After(100*time.Millisecond):
 		}
 
-		message := <-dispatcher.ServerService.channelMessage // FIXME: select
-		dispatcher.OnReceive(message)
+		// TODO:
+		// Может ли быть дедлок?
 	}
+}
+
+func (dispatcher *NetworkDispatcher) goLoop() {
+	dispatcher.waitGroup.Add(1)
+	go dispatcher.Loop()
 }
 
 func (dispatcher *NetworkDispatcher) Start() {
@@ -98,9 +110,7 @@ func (dispatcher *NetworkDispatcher) Start() {
 	dispatcher.ServerService.Start()
 
 	dispatcher.isRunning = true
-
-	dispatcher.waitGroup.Add(1)
-	go dispatcher.Loop()
+	dispatcher.goLoop()
 }
 
 func (dispatcher *NetworkDispatcher) Stop() {
@@ -110,7 +120,7 @@ func (dispatcher *NetworkDispatcher) Stop() {
 		log.Panicf("Dispatcher isn't working") // Консэнсусер может сюда войти
 	}
 
-	close(dispatcher.channelLoopEnd)
+	dispatcher.channelStop<-0
 	dispatcher.waitGroup.Wait()
 
 	dispatcher.ServerService.Stop()

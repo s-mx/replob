@@ -61,3 +61,34 @@ func (msg *Message) GetType() int {
 func (msg *Message) notEqual(otherMsg *Message) bool {
 	return msg.VotedSet.NotEqual(otherMsg.VotedSet)
 }
+
+func (msg *Message) Equal(other Message) bool {
+	// FIXME: додумать этот кусок
+	if msg.MessageType != other.MessageType || msg.IdFrom != other.IdFrom {
+		return false
+	}
+
+	if msg.MessageType == Empty {
+		return true
+	}
+
+	if msg.MessageType == Vote {
+		if msg.NodesSet.Equal(other.NodesSet) && msg.VotedSet.Equal(other.VotedSet) &&
+		   msg.Stamp == other.Stamp && msg.StepId == other.StepId {
+			return true
+		}
+	}
+
+	if msg.MessageType == Commit {
+		if msg.NodesSet.Equal(other.NodesSet) && msg.CarriesSet.Equal(other.CarriesSet) &&
+			msg.Stamp == other.Stamp && msg.StepId == other.StepId {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (msg *Message) NotEqual(other Message) bool {
+	return !msg.Equal(other)
+}

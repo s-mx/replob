@@ -7,6 +7,7 @@ import (
 	"sync"
 	"log"
 	"time"
+	"bytes"
 )
 
 type ClientService struct {
@@ -32,25 +33,13 @@ func NewClientService(id int, service string) *ClientService {
 	}
 }
 
-func (service *ClientService) start() {
-	defer func() {
-		service.connection.Close()
-		service.waitGroup.Done()
-	}()
-
-	var raddr *net.TCPAddr
-	var err error
-	raddr, err = net.ResolveTCPAddr("tcp", service.service)
-	service.connection, err = net.DialTCP("tcp", nil, raddr)
-	if err != nil {
-		log.Printf(err.Error())
-		return
-	}
+func (service *ClientService) loop() int {
+	defer service.connection.Close()
 
 	for {
 		select {
 		case <-service.channelStop:
-			return
+			return 0
 		default:
 		}
 
@@ -61,14 +50,64 @@ func (service *ClientService) start() {
 			continue
 		}
 
-		// FIXME: implement reconnection and appropriate error handling
+		var err error
+		var buffer bytes.Buffer
+		err = gob.NewEncoder(&buffer).Encode(message)
 		checkError(err)
-		err = gob.NewEncoder(service.connection).Encode(message)
+
+		service.connection.Write(buffer.Bytes())
+		if Err, ok := err.(*net.OpError); ok {
+			if Err.Timeout() {
+				log.Printf("Client [%d]: Timeout error", service.id)
+				continue
+			}
+
+			log.Printf("Client [%d]: error %s", service.id, Err.Error())
+			return 2
+		}
+
+		checkError(err)
 		// TODO: понять какие ошибки обрабатывать
 		// Логируем все ошибки
 		// проверяем io.EOF, Timeout
 		// Ставим Timeout на запись, кастуем к OpError, проверяем Timeout()
 		// пересоздаем соединение
+	}
+}
+
+func (service *ClientService) start() {
+	defer func() {
+		log.Printf("Client [%d]: stop working", service.id)
+		service.waitGroup.Done()
+	}()
+
+	numberAttempts := 0
+	for {
+		numberAttempts++
+		var raddr *net.TCPAddr
+		var err1, err2 error
+		raddr, err1 = net.ResolveTCPAddr("tcp", service.service)
+		service.connection, err2 = net.DialTCP("tcp", nil, raddr)
+		if err1 != nil || err2 != nil {
+			if err1 != nil {
+				log.Printf(err1.Error())
+			} else {
+				log.Printf(err2.Error())
+			}
+
+			if numberAttempts == int(1e9) {
+				log.Printf("Client [%d]: Attempts to connect ended", service.id)
+				return
+			}
+
+			log.Printf("Client [%d]: another %d attempt to connect", service.id, numberAttempts)
+			continue
+		}
+
+		numberAttempts = 0
+		if service.loop() == 0 {
+			break
+		}
 	}
 }
 

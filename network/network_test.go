@@ -2,9 +2,11 @@ package network
 
 import (
 	"testing"
+	"github.com/s-mx/replob/containers"
+	"time"
 )
 
-func TestSendSimpleMessage(t *testing.T) {
+func TestSendSimpleConnection(t *testing.T) {
 	conf := NewLocalNetConfiguration(2)
 	client1 := NewClientService(0, conf.serviceServer[1])
 	client2 := NewClientService(1, conf.serviceServer[0])
@@ -20,4 +22,35 @@ func TestSendSimpleMessage(t *testing.T) {
 	client2.Stop()
 	server1.Stop()
 	server2.Stop()
+}
+
+func TestSimpleMessage(t *testing.T) {
+	conf := NewLocalNetConfiguration(2)
+	client1 := NewClientService(0, conf.serviceServer[0])
+	server1 := NewServerService(0, conf)
+
+	msg := containers.NewEmptyMessage()
+
+	server1.Start()
+	client1.Start()
+
+	select {
+	case client1.channelMessage<-msg:
+	case <-time.After(time.Second):
+		t.Fatal("Message didn't send")
+	}
+
+	var msgRec containers.Message
+	select {
+	case msgRec = <-server1.channelMessage:
+	case <-time.After(time.Second):
+		t.Fatal("Message didn't received")
+	}
+
+	if msg.NotEqual(msgRec) {
+		t.Fatal("Received message isn't correct")
+	}
+
+	client1.Stop()
+	server1.Stop()
 }
