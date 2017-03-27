@@ -39,7 +39,7 @@ func (service *ClientService) loop() int {
 	for {
 		select {
 		case <-service.channelStop:
-			return 0
+			return 0 // FIXME: use constants
 		default:
 		}
 
@@ -52,6 +52,7 @@ func (service *ClientService) loop() int {
 
 		var err error
 		var buffer bytes.Buffer
+		// FIXME: add write deadline
 		err = gob.NewEncoder(&buffer).Encode(message)
 		checkError(err)
 
