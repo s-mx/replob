@@ -10,6 +10,11 @@ import (
 	"bytes"
 )
 
+const (
+	OK = iota
+	ERROR
+)
+
 type ClientService struct {
 	id				int
 	service			string
@@ -39,7 +44,7 @@ func (service *ClientService) loop() int {
 	for {
 		select {
 		case <-service.channelStop:
-			return 0 // FIXME: use constants
+			return OK
 		default:
 		}
 
@@ -52,10 +57,10 @@ func (service *ClientService) loop() int {
 
 		var err error
 		var buffer bytes.Buffer
-		// FIXME: add write deadline
 		err = gob.NewEncoder(&buffer).Encode(message)
 		checkError(err)
 
+		service.connection.SetDeadline(time.Now().Add(time.Second))
 		service.connection.Write(buffer.Bytes())
 		if Err, ok := err.(*net.OpError); ok {
 			if Err.Timeout() {
@@ -64,7 +69,7 @@ func (service *ClientService) loop() int {
 			}
 
 			log.Printf("Client [%d]: error %s", service.id, Err.Error())
-			return 2
+			return ERROR
 		}
 
 		checkError(err)

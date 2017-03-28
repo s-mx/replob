@@ -11,30 +11,32 @@ import (
 	"sync/atomic"
 )
 
+const (
+	STOPPED = iota
+	RUNNING
+)
+
 type ServerService struct {
 	id					int
 	service				string
 	channelMessage		chan cont.Message
 	channelStop			chan interface{}
 	waitGroup			sync.WaitGroup
-	waitGroupHandlers	sync.WaitGroup
 
 	numberClients		int
-	flagClose			*int32
 
-	isRunning			bool
-	mutexRunning		sync.Mutex
+	isRunning			*int32
 }
 
 func NewServerService(id int, config *Configuration) *ServerService {
-	tmpFlagClose := int32(0)
+	tmpInt := int32(0)
 	return &ServerService{
 		id:id,
 		service:config.serviceServer[id],
 		channelMessage:make(chan cont.Message, 10), // TODO: use flags
 		channelStop:make(chan interface{}),
 		numberClients:0,
-		flagClose:&tmpFlagClose,
+		isRunning:&tmpInt,
 	}
 }
 
@@ -42,12 +44,11 @@ func (service *ServerService) handleConnection(id int, conn *net.TCPConn) {
 	defer func() {
 		log.Printf("Client [%d]: stopping working", service.id)
 		conn.Close()
-		service.waitGroupHandlers.Done()
 		service.waitGroup.Done()
 	}()
 
 	for {
-		if atomic.LoadInt32(service.flagClose) != 0 {
+		if atomic.LoadInt32(service.isRunning) == STOPPED {
 			log.Printf("Handler [%d]: stop working", service.id)
 			return
 		}
@@ -56,10 +57,9 @@ func (service *ServerService) handleConnection(id int, conn *net.TCPConn) {
 
 		var message cont.Message
 		var err error
-		err = gob.NewDecoder(conn).Decode(&message) // FIXME: consider error checking here
+		err = gob.NewDecoder(conn).Decode(&message)
 		if err == io.EOF {
-			// FIXME: add info log
-			log.Printf("EOF")
+			log.Printf("Server [%d]: EOF has occured", service.id)
 			return
 		}
 
@@ -74,21 +74,13 @@ func (service *ServerService) handleConnection(id int, conn *net.TCPConn) {
 
 		checkError(err)
 
-		select {
-		case service.channelMessage<-message:
-			log.Printf("Server [%d]: Message sent", service.id)
-			break
-		// FIXME: consider removing timeout
-		case <-time.After(time.Second): // FIXME: use flags instead
-			log.Printf("Server [%d]: The message is lost", service.id)
-			break
-		}
+		log.Printf("Server [%d]: Message sent", service.id)
+		service.channelMessage<-message
 	}
 }
 
 func (service *ServerService) goHandler(id int, conn *net.TCPConn) {
 	service.waitGroup.Add(1)
-	service.waitGroupHandlers.Add(1)
 	go service.handleConnection(id, conn)
 }
 
@@ -99,13 +91,12 @@ func (service *ServerService) Serve(listener *net.TCPListener) {
 	}()
 
 	for {
-		if atomic.LoadInt32(service.flagClose) != 0 {
+		if atomic.LoadInt32(service.isRunning) == STOPPED {
 			log.Printf("Server [%d]: waiting for handlers", service.id)
-			service.waitGroupHandlers.Wait()
 			return
 		}
 
-		listener.SetDeadline(time.Now().Add(500 * time.Microsecond)) // FIXME: use flags
+		listener.SetDeadline(time.Now().Add(5 * time.Second)) // FIXME: use flags
 		conn, err := listener.AcceptTCP()
 		if err != nil {
 			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
@@ -113,7 +104,7 @@ func (service *ServerService) Serve(listener *net.TCPListener) {
 			}
 
 			log.Printf("WARNING: %s", err)
-			// FIXME: add handling
+			continue
 		}
 
 		conn.RemoteAddr()
@@ -124,14 +115,11 @@ func (service *ServerService) Serve(listener *net.TCPListener) {
 }
 
 func (service *ServerService) Start() {
-	defer service.mutexRunning.Unlock()
-	service.mutexRunning.Lock()
-
-	if service.isRunning {
+	if atomic.LoadInt32(service.isRunning) == RUNNING {
 		return
 	}
 
-	service.isRunning = true
+	atomic.StoreInt32(service.isRunning, RUNNING)
 
 	laddr, err := net.ResolveTCPAddr("tcp", service.service)
 	checkError(err)
@@ -143,16 +131,12 @@ func (service *ServerService) Start() {
 }
 
 func (service *ServerService) Stop() {
-	defer service.mutexRunning.Unlock()
-	service.mutexRunning.Lock()
 
-	if service.isRunning == false {
+	if atomic.LoadInt32(service.isRunning) == STOPPED {
 		return
 	}
 
-	// FIXME: Combine isRunning and flagClose as single atomic variable
-	service.isRunning = false
-	atomic.StoreInt32(service.flagClose, 1)
+	atomic.StoreInt32(service.isRunning, STOPPED)
 	service.waitGroup.Wait()
 	log.Printf("Server [%d]: stop working", service.id)
 }

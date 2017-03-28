@@ -10,7 +10,7 @@ import (
 type Dispatcher interface {
 	Broadcast(message cont.Message)
 	IncStep()
-	Stop()
+	Pause()
 }
 
 type TestLocalDispatcher struct {
@@ -115,7 +115,7 @@ func (dispatcher *TestLocalDispatcher) IsRunning() bool {
 	return dispatcher.isRunning
 }
 
-func (dispatcher *TestLocalDispatcher) Stop() {
+func (dispatcher *TestLocalDispatcher) Pause() {
 	dispatcher.isRunning = false
 }
 

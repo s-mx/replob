@@ -106,7 +106,7 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 	consensuser.VotedSet.Intersect(consensuser.CurrentNodes)
 	if consensuser.Nodes.Size() >= consensuser.CurrentNodes.Size() * 2 {
 		log.Printf("current set of nodes of %d consensuser become less than majority", consensuser.Id)
-		consensuser.Stop()
+		consensuser.Pause()
 		return
 	}
 

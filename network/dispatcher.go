@@ -6,6 +6,7 @@ import (
 	"log"
 	"sync"
 	"time"
+	"sync/atomic"
 )
 
 type NetworkDispatcher struct {
@@ -24,15 +25,16 @@ type NetworkDispatcher struct {
 	channelLoopEnd			chan interface{}
 	channelStop				chan interface{}
 
-	// Есть функция Stop, которую может позвать и консэнсусер и пользователь диспетчера
+	// Есть функция Pause, которую может позвать и консэнсусер и пользователь диспетчера
 	// Для исключительного доступа используется мьютекс
-	isRunning     			bool
+	isRunning     			*int32
 	mutexRunning			sync.Mutex
 
 	waitGroup				sync.WaitGroup
 }
 
 func NewNetworkDispatcher(id int, config *Configuration) *NetworkDispatcher {
+	tmp := int32(0)
 	ptr := &NetworkDispatcher{
 		id:id,
 		config:*config,
@@ -40,7 +42,7 @@ func NewNetworkDispatcher(id int, config *Configuration) *NetworkDispatcher {
 		myStepId:0,
 		myStamp:0,
 		nodesStamps:make([]cont.Stamp, config.numberNodes),
-		isRunning:false,
+		isRunning:&tmp,
 	}
 
 	for ind := 0; ind < config.numberNodes; ind++ {
@@ -78,15 +80,17 @@ func (dispatcher *NetworkDispatcher) Loop() {
 		default:
 		}
 
+		if atomic.LoadInt32(dispatcher.isRunning) == STOPPED {
+			//time.Sleep(500 * time.Microsecond)
+			continue
+		}
+
 		select {
 		case message := <-dispatcher.ServerService.channelMessage:
 			dispatcher.OnReceive(message)
 			break
 		case <-time.After(100*time.Millisecond): // FIXME: use flags
 		}
-
-		// TODO:
-		// Может ли быть дедлок?
 	}
 }
 
@@ -103,28 +107,35 @@ func (dispatcher *NetworkDispatcher) Start() {
 		log.Panicf("ERROR dispatcher[%d]: consensuser isn't created\n", dispatcher.id)
 	}
 
-	if dispatcher.isRunning {
+	if atomic.LoadInt32(dispatcher.isRunning) == RUNNING {
 		return
 	}
 
 	dispatcher.StartClients()
 	dispatcher.ServerService.Start()
 
-	dispatcher.isRunning = true
+	atomic.StoreInt32(dispatcher.isRunning, RUNNING)
 	dispatcher.goLoop()
 }
 
+func (dispatcher *NetworkDispatcher) Pause() {
+	atomic.StoreInt32(dispatcher.isRunning, STOPPED)
+}
+
 func (dispatcher *NetworkDispatcher) Stop() {
-	defer dispatcher.mutexRunning.Unlock() // FIXME: заменить на channel
+	// Операция сравнения и присваивания неразделимые операции
 	dispatcher.mutexRunning.Lock()
-	if dispatcher.isRunning == false {
-		log.Panicf("Dispatcher isn't working") // Консэнсусер может сюда войти
+	if atomic.LoadInt32(dispatcher.isRunning) == STOPPED {
+		log.Printf("INFO dispatcher[%d]: Attempt to stop. Dispatcher has already stopped", dispatcher.id) // Консэнсусер может сюда войти
+		return
 	}
 
-	dispatcher.channelStop<-0
-	dispatcher.waitGroup.Wait()
+	atomic.StoreInt32(dispatcher.isRunning, STOPPED)
+	dispatcher.mutexRunning.Unlock()
 
 	dispatcher.ServerService.Stop()
+	dispatcher.channelStop<-0
+	dispatcher.waitGroup.Wait()
 	for ind := 0; ind < dispatcher.config.numberNodes; ind++ {
 		if ind == dispatcher.id {
 			continue
@@ -132,8 +143,6 @@ func (dispatcher *NetworkDispatcher) Stop() {
 
 		dispatcher.ClientServices[ind].Stop()
 	}
-
-	dispatcher.isRunning = false
 }
 
 func (dispatcher *NetworkDispatcher) messageIsOutdated(message cont.Message) bool {
@@ -147,12 +156,12 @@ func (dispatcher *NetworkDispatcher) updateMessageStamp(message cont.Message) {
 }
 
 func (dispatcher *NetworkDispatcher) OnReceive(message cont.Message) {
-	if dispatcher.isRunning == false {
+	if atomic.LoadInt32(dispatcher.isRunning) == STOPPED {
 		return
 	}
 
 	if message.StepId > dispatcher.myStepId {
-		dispatcher.isRunning = false
+		atomic.StoreInt32(dispatcher.isRunning, STOPPED)
 		dispatcher.logOutdatedStepId(message)
 		return
 	}
@@ -174,10 +183,13 @@ func (dispatcher *NetworkDispatcher) Broadcast(message cont.Message) {
 			continue
 		}
 
-		// FIXME: in case of blocking just drop the message (add select)
 		// In future we need something else for that.
 		// May be set high buffer for channel.
-		dispatcher.ClientServices[ind].channelMessage<-message
+		select {
+		case dispatcher.ClientServices[ind].channelMessage<-message:
+			break
+		default:
+		}
 	}
 }
 
@@ -191,9 +203,7 @@ func (dispatcher *NetworkDispatcher) nextStamp() cont.Stamp {
 }
 
 func (dispatcher *NetworkDispatcher) IsRunning() bool {
-	defer dispatcher.mutexRunning.Unlock()
-	dispatcher.mutexRunning.Lock()
-	return dispatcher.isRunning
+	return atomic.LoadInt32(dispatcher.isRunning) == RUNNING
 }
 
 func (dispatcher *NetworkDispatcher) logDroppedMessage(message cont.Message) {
