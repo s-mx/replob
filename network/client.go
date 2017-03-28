@@ -48,6 +48,12 @@ func (service *ClientService) loop() int {
 		default:
 		}
 
+		/*
+		Use the following logic:
+		on error try to resend the last message only if there are no any messages in channel,
+		otherwise send the most recent message from the channel
+		*/
+
 		var message cont.Message
 		select {
 		case message = <-service.channelMessage:
@@ -101,7 +107,7 @@ func (service *ClientService) start() {
 				log.Printf(err2.Error())
 			}
 
-			if numberAttempts == int(1e9) {
+			if numberAttempts == int(1e9) { // FIXME: use flags here
 				log.Printf("Client [%d]: Attempts to connect ended", service.id)
 				return
 			}
