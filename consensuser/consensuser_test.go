@@ -16,8 +16,9 @@ func TestOneNode(t *testing.T) {
 	helper := newTestCommitHelper(1, carries, LocalDispatchers)
 	cm := NewTestLocalCommitter(0, helper)
 	cons := NewCalmConsensuser(dsp, cm, conf, 0)
+	dsp.cons = cons
 
-	cons.Propose(carries[0])
+	dsp.Propose(carries[0])
 	if helper.CheckSafety() == false {
 		t.Error("Carry isn't committed")
 	}
@@ -114,7 +115,7 @@ func RunRandomTest(numberNodes int, numberCarries int, seed int64, t *testing.T)
 	consensusers := []*CalmConsensuser{}
 	for ind := 0; ind < numberNodes; ind++ {
 		cm := NewTestLocalCommitter(cont.NodeId(ind), helper)
-		cons := NewCalmConsensuser(LocalDispatchers[ind], Committer(cm), conf, cont.NodeId(ind))
+		cons := NewCalmConsensuser(LocalDispatchers[ind], Committer(cm), conf, ind)
 		LocalDispatchers[ind].cons = cons
 		consensusers = append(consensusers, cons)
 	}
@@ -265,7 +266,7 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 	consensusers := []*CalmConsensuser{}
 	for ind := 0; ind < numberNodes; ind++ {
 		cm := NewTestLocalCommitter(cont.NodeId(ind), helper)
-		cons := NewCalmConsensuser(LocalDispatchers[ind], Committer(cm), conf, cont.NodeId(ind))
+		cons := NewCalmConsensuser(LocalDispatchers[ind], Committer(cm), conf, ind)
 		LocalDispatchers[ind].cons = cons
 		consensusers = append(consensusers, cons)
 	}

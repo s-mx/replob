@@ -22,27 +22,29 @@ type NetworkDispatcher struct {
 	myStamp					cont.Stamp
 	nodesStamps				[]cont.Stamp
 
-	channelLoopEnd			chan interface{}
+	replob					Replob
+
 	channelStop				chan interface{}
 
-	// Есть функция Pause, которую может позвать и консэнсусер и пользователь диспетчера
-	// Для исключительного доступа используется мьютекс
 	isRunning     			*int32
 	mutexRunning			sync.Mutex
 
 	waitGroup				sync.WaitGroup
 }
 
-func NewNetworkDispatcher(id int, config *Configuration) *NetworkDispatcher {
+func NewNetworkDispatcher(id int, config *Configuration, reblob Replob) *NetworkDispatcher {
 	tmp := int32(0)
 	ptr := &NetworkDispatcher{
 		id:id,
 		config:*config,
+		ServerService:NewServerService(id, config),
 		ClientServices:make([]*ClientService, config.numberNodes),
 		myStepId:0,
 		myStamp:0,
 		nodesStamps:make([]cont.Stamp, config.numberNodes),
+		channelStop:make(chan interface{}),
 		isRunning:&tmp,
+		replob:reblob,
 	}
 
 	for ind := 0; ind < config.numberNodes; ind++ {
@@ -55,6 +57,18 @@ func NewNetworkDispatcher(id int, config *Configuration) *NetworkDispatcher {
 
 	ptr.ServerService = NewServerService(id, config)
 	return ptr
+}
+
+func NewConsensuser(id int, config* Configuration, replob Replob) (*NetworkDispatcher, *consensus.CalmConsensuser) {
+	disp := NewNetworkDispatcher(id, config, replob)
+	replob.SetDispatcher(disp)
+	cons := consensus.NewCalmConsensuser(disp, disp, config.GetMasterlessConfiguration(), id)
+	disp.cons = cons
+	return disp, cons
+}
+
+func (dispatcher *NetworkDispatcher) Propose(carry cont.Carry) {
+	dispatcher.cons.Propose(carry)
 }
 
 func (dispatcher *NetworkDispatcher) StartClients() {
@@ -75,13 +89,22 @@ func (dispatcher *NetworkDispatcher) Loop() {
 
 	for {
 		select {
-		case <-dispatcher.channelStop:
+		case _=<-dispatcher.channelStop:
 			return
 		default:
 		}
 
 		if atomic.LoadInt32(dispatcher.isRunning) == STOPPED {
-			//time.Sleep(500 * time.Microsecond)
+			time.Sleep(500 * time.Microsecond)
+			continue
+		}
+
+		if dispatcher.cons.GetState() == consensus.Initial {
+			carry, ok := dispatcher.replob.getCarry()
+			if ok {
+				dispatcher.cons.Propose(carry)
+			}
+
 			continue
 		}
 
@@ -118,20 +141,28 @@ func (dispatcher *NetworkDispatcher) Start() {
 	dispatcher.goLoop()
 }
 
-func (dispatcher *NetworkDispatcher) Pause() {
-	atomic.StoreInt32(dispatcher.isRunning, STOPPED)
+func (dispatcher *NetworkDispatcher) Fail(codeReason int) {
+	// TODO: recovery here
+	if codeReason == consensus.LOSTMAJORITY {
+		log.Printf("Dispatcher [%d]: Lost majority in consensuser", dispatcher.id)
+	}
 }
 
-func (dispatcher *NetworkDispatcher) Stop() {
-	// Операция сравнения и присваивания неразделимые операции
+func (dispatcher *NetworkDispatcher) Stop() bool {
+	if atomic.CompareAndSwapInt32(dispatcher.isRunning, RUNNING, STOPPED) == false {
+		return true
+	}
+
+	return false
+}
+
+func (dispatcher *NetworkDispatcher) StopWait() {
+	defer dispatcher.mutexRunning.Unlock()
 	dispatcher.mutexRunning.Lock()
-	if atomic.LoadInt32(dispatcher.isRunning) == STOPPED {
+	if atomic.CompareAndSwapInt32(dispatcher.isRunning, RUNNING, STOPPED) == false {
 		log.Printf("INFO dispatcher[%d]: Attempt to stop. Dispatcher has already stopped", dispatcher.id) // Консэнсусер может сюда войти
 		return
 	}
-
-	atomic.StoreInt32(dispatcher.isRunning, STOPPED)
-	dispatcher.mutexRunning.Unlock()
 
 	dispatcher.ServerService.Stop()
 	dispatcher.channelStop<-0
@@ -143,6 +174,10 @@ func (dispatcher *NetworkDispatcher) Stop() {
 
 		dispatcher.ClientServices[ind].Stop()
 	}
+}
+
+func (dispatcher *NetworkDispatcher) CommitSet(carries cont.CarriesSet) {
+	dispatcher.replob.CommitSet(carries)
 }
 
 func (dispatcher *NetworkDispatcher) messageIsOutdated(message cont.Message) bool {
@@ -178,6 +213,10 @@ func (dispatcher *NetworkDispatcher) OnReceive(message cont.Message) {
 }
 
 func (dispatcher *NetworkDispatcher) Broadcast(message cont.Message) {
+	message.IdFrom = cont.NodeId(dispatcher.id)
+	message.Stamp = dispatcher.nextStamp()
+	message.StepId = dispatcher.getStep()
+
 	for ind := 0; ind < dispatcher.config.numberNodes; ind++ {
 		if ind == dispatcher.id {
 			continue
@@ -191,6 +230,10 @@ func (dispatcher *NetworkDispatcher) Broadcast(message cont.Message) {
 		default:
 		}
 	}
+}
+
+func (dispatcher *NetworkDispatcher) getStep() cont.StepId {
+	return dispatcher.myStepId
 }
 
 func (dispatcher *NetworkDispatcher) IncStep() {

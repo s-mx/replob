@@ -20,7 +20,6 @@ type ServerService struct {
 	id					int
 	service				string
 	channelMessage		chan cont.Message
-	channelStop			chan interface{}
 	waitGroup			sync.WaitGroup
 
 	numberClients		int
@@ -34,7 +33,6 @@ func NewServerService(id int, config *Configuration) *ServerService {
 		id:id,
 		service:config.serviceServer[id],
 		channelMessage:make(chan cont.Message, 10), // TODO: use flags
-		channelStop:make(chan interface{}),
 		numberClients:0,
 		isRunning:&tmpInt,
 	}
@@ -74,8 +72,13 @@ func (service *ServerService) handleConnection(id int, conn *net.TCPConn) {
 
 		checkError(err)
 
-		log.Printf("Server [%d]: Message sent", service.id)
-		service.channelMessage<-message
+		log.Printf("Server [%d]: Message received", service.id)
+		select {
+		case service.channelMessage<-message:
+			break
+		default:
+			log.Printf("Server [%d]: The message is lost", service.id)
+		}
 	}
 }
 

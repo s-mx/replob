@@ -9,6 +9,7 @@ type Consensuser interface {
 	Propose(cont.Carry)
 	OnBroadcast(cont.Message)
 	OnDisconnect(cont.NodeId)
+	GetState() CalmState
 }
 
 type ConsensusController interface {
@@ -43,12 +44,12 @@ type CalmConsensuser struct {
 }
 
 func NewCalmConsensuser(dispatcher Dispatcher, committer Committer,
-	conf Configuration, id cont.NodeId) *CalmConsensuser {
+	conf Configuration, id int) *CalmConsensuser {
 	return &CalmConsensuser{
 		Committer:    committer,
 		Dispatcher:   dispatcher,
 		State:        Initial,
-		Id:           id,
+		Id:           cont.NodeId(id),
 		Nodes:		  conf.Info,
 		CurrentNodes: conf.Info,
 	}
@@ -105,8 +106,8 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 	consensuser.mergeVotes(msg) // don't use msg right after this line
 	consensuser.VotedSet.Intersect(consensuser.CurrentNodes)
 	if consensuser.Nodes.Size() >= consensuser.CurrentNodes.Size() * 2 {
-		log.Printf("current set of nodes of %d consensuser become less than majority", consensuser.Id)
-		consensuser.Pause()
+		log.Printf("Consensuser [%d]: Current set of nodes has become less than majority", consensuser.Id)
+		consensuser.Fail(LOSTMAJORITY)
 		return
 	}
 
@@ -148,6 +149,10 @@ func (consensuser *CalmConsensuser) CleanUp() {
 func (consensuser *CalmConsensuser) PrepareNextStep() {
 	consensuser.CleanUp()
 	consensuser.IncStep()
+}
+
+func (consensuser *CalmConsensuser) GetState() CalmState {
+	return consensuser.State
 }
 
 func (consensuser *CalmConsensuser) OnDisconnect(idFrom cont.NodeId) {

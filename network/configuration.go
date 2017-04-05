@@ -1,6 +1,9 @@
 package network
 
-import "strconv"
+import (
+	"strconv"
+	"github.com/s-mx/replob/consensuser"
+)
 
 type Configuration struct {
 	numberNodes		int
@@ -18,4 +21,8 @@ func NewLocalNetConfiguration(numberNodes int) *Configuration {
 	}
 
 	return ptr
+}
+
+func (config *Configuration) GetMasterlessConfiguration() consensuser.Configuration {
+	return consensuser.NewMasterlessConfiguration(uint32(config.numberNodes))
 }

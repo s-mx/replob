@@ -68,5 +68,29 @@ func TestTwoNodes(t *testing.T) {
 	client1.Start()
 	client2.Start()
 
+	client1.Stop()
+	client2.Stop()
+	server1.Stop()
+	server2.Stop()
+}
 
+func TestTwoConsensusers(t *testing.T) {
+	// FIXME: Иногда падает, когда не может сделать bind из-за занятого порта
+
+	carries := containers.NewCarries(1, 2, 3)
+	config := NewLocalNetConfiguration(2)
+	replob1 := NewLocalReplob()
+	replob2 := NewLocalReplob()
+	disp1, _ := NewConsensuser(0, config, replob1)
+	disp2, _ := NewConsensuser(1, config, replob2)
+
+	disp1.Start()
+	disp2.Start()
+
+	replob1.Propose(carries[0])
+	replob2.Propose(carries[1])
+	replob1.Propose(carries[2])
+
+	disp1.StopWait()
+	disp2.StopWait()
 }

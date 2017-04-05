@@ -12,6 +12,12 @@ type QueueMessages struct {
 	arr []queueItem
 }
 
+type QueueCarry struct {
+	arr []queueItem
+}
+
+// TODO: implement
+
 func NewQueueMessages() *QueueMessages {
 	ptr := new(QueueMessages)
 	ptr.arr = make([]queueItem, 0)

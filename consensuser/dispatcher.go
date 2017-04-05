@@ -7,10 +7,17 @@ import (
 	"log"
 )
 
+const (
+	LOSTMAJORITY = iota
+)
+
 type Dispatcher interface {
 	Broadcast(message cont.Message)
 	IncStep()
-	Pause()
+	Stop() bool
+	StopWait()
+	Fail(int)
+	Propose(carry cont.Carry)
 }
 
 type TestLocalDispatcher struct {
@@ -52,6 +59,14 @@ func NewLocalDispatcher(id cont.NodeId, conf Configuration, numberDispatchers in
 		dispatchers: make([]*TestLocalDispatcher, numberDispatchers),
 		isRunning:   true,
 		t:           t,
+	}
+}
+
+func (dispatcher *TestLocalDispatcher) Propose(carry cont.Carry) {
+	if dispatcher.cons.GetState() == Initial {
+		dispatcher.cons.Propose(carry)
+	} else {
+		log.Printf("Dispatcher [%d]: state of consenuser isn't Initial", dispatcher.nodeId)
 	}
 }
 
@@ -115,7 +130,21 @@ func (dispatcher *TestLocalDispatcher) IsRunning() bool {
 	return dispatcher.isRunning
 }
 
-func (dispatcher *TestLocalDispatcher) Pause() {
+func (dispatcher *TestLocalDispatcher) Stop() bool {
+	dispatcher.isRunning = false
+	return true
+}
+
+func (dispatcher *TestLocalDispatcher) StopWait() {
+	dispatcher.isRunning = false
+}
+
+func (dispatcher *TestLocalDispatcher) Fail(codeReason int) {
+	// TODO: recovery here
+	if codeReason == LOSTMAJORITY {
+		log.Printf("Dispatcher [%d]: Lost majority in consensuser", dispatcher.nodeId)
+	}
+
 	dispatcher.isRunning = false
 }
 
