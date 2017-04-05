@@ -61,7 +61,6 @@ func NewNetworkDispatcher(id int, config *Configuration, reblob Replob) *Network
 
 func NewConsensuser(id int, config* Configuration, replob Replob) (*NetworkDispatcher, *consensus.CalmConsensuser) {
 	disp := NewNetworkDispatcher(id, config, replob)
-	replob.SetDispatcher(disp)
 	cons := consensus.NewCalmConsensuser(disp, disp, config.GetMasterlessConfiguration(), id)
 	disp.cons = cons
 	return disp, cons

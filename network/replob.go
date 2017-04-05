@@ -6,10 +6,9 @@ import (
 	"log"
 )
 
-type Replob interface{
+type Replob interface {
 	consensuser.Committer
 	Propose(carry cont.Carry)
-	SetDispatcher(consensuser.Dispatcher)
 	getCarry() (cont.Carry, bool)
 }
 
@@ -38,7 +37,8 @@ func (replob *LocalReplob) getCarry() (cont.Carry, bool) {
 		return nil, false
 	}
 
-	return replob.batcher.GetCarry(), true
+	carry := replob.batcher.GetCarry()
+	return &carry, true
 }
 
 // TODO: implement
