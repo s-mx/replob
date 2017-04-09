@@ -38,12 +38,11 @@ func (replob *LocalReplob) getCarry() (cont.Carry, bool) {
 	}
 
 	carry := replob.batcher.GetCarry()
-	return &carry, true
+	return carry, true
 }
 
-// TODO: implement
 type Batcher struct {
-	queue	cont.QueueMessages
+	queue	cont.QueueCarry
 }
 
 func NewBatcher() *Batcher {

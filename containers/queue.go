@@ -1,61 +1,99 @@
 package containers
 
-type queueItem struct {
-	msg Message
+type Queue struct {
+	arr []interface{}
 }
 
-func newQueueItem(msg Message) *queueItem {
-	return &queueItem{msg}
+func NewQueue() *Queue {
+	return &Queue{
+		arr:make([]interface{}, 0),
+	}
 }
 
-type QueueMessages struct {
-	arr []queueItem
+func (q *Queue) Size() int {
+	return len(q.arr)
 }
 
-type QueueCarry struct {
-	arr []queueItem
-}
-
-// TODO: implement
-
-func NewQueueMessages() *QueueMessages {
-	ptr := new(QueueMessages)
-	ptr.arr = make([]queueItem, 0)
-	return ptr
-}
-
-func (queue *QueueMessages) Size() int {
-	return len(queue.arr)
-}
-
-func (queue *QueueMessages) Push(msg Message) {
-	if len(queue.arr) == cap(queue.arr) {
-		queue.reallocate()
+func (q *Queue) Push(elem interface{}) {
+	if len(q.arr) == cap(q.arr) {
+		q.reallocate()
 	}
 
-	queue.arr = append(queue.arr, *newQueueItem(msg))
+	q.arr = append(q.arr, elem)
 }
 
-func (queue *QueueMessages) reallocate() {
-	if len(queue.arr) < cap(queue.arr) {
+func (q *Queue) reallocate() {
+	if len(q.arr) < cap(q.arr) {
 		return
 	}
 
-	newPtr := make([]queueItem, len(queue.arr), (len(queue.arr)+1)*2)
-	copy(newPtr, queue.arr)
-	queue.arr = newPtr
+	newPtr := make([]interface{}, len(q.arr), (len(q.arr)+1)*2)
+	copy(newPtr, q.arr)
+	q.arr = newPtr
+}
+
+func (q *Queue) Pop() interface{} {
+	firstElem := q.arr[0]
+	q.arr = append(q.arr[:0], q.arr[1:]...)
+	return firstElem
+}
+
+func (q *Queue) Swap(i, j int) {
+	q.arr[i], q.arr[j] = q.arr[j], q.arr[i]
+}
+
+func (q *Queue) Clear() {
+	q.arr = make([]interface{}, 0)
+}
+
+type QueueMessages struct {
+	*Queue
+}
+
+func NewQueueMessages() *QueueMessages {
+	return &QueueMessages{
+		Queue:NewQueue(),
+	}
+}
+
+func (queue *QueueMessages) Size() int {
+	return queue.Queue.Size()
+}
+
+func (queue *QueueMessages) Push(msg Message) {
+	queue.Queue.Push(msg)
 }
 
 func (queue *QueueMessages) Pop() Message {
-	firstElem := queue.arr[0]
-	queue.arr = append(queue.arr[:0], queue.arr[1:]...)
-	return firstElem.msg
-}
-
-func (queue *QueueMessages) Swap(i, j int) {
-	queue.arr[i], queue.arr[j] = queue.arr[j], queue.arr[i]
+	return queue.Queue.Pop().(Message)
 }
 
 func (queue *QueueMessages) Clear() {
-	queue.arr = make([]queueItem, 0)
+	queue.Queue.Clear()
+}
+
+type QueueCarry struct {
+	*Queue
+}
+
+func NewQueueCarry() *QueueCarry {
+	return &QueueCarry{
+		Queue:NewQueue(),
+	}
+}
+
+func (queue *QueueCarry) Size() int {
+	return queue.Queue.Size()
+}
+
+func (queue *QueueCarry) Push(carry Carry) {
+	queue.Queue.Push(carry)
+}
+
+func (queue *QueueCarry) Pop() Carry {
+	return queue.Queue.Pop().(Carry)
+}
+
+func (queue *QueueCarry) Clear() {
+	queue.Queue.Clear()
 }
