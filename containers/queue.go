@@ -38,12 +38,24 @@ func (q *Queue) Pop() interface{} {
 	return firstElem
 }
 
+func (q *Queue) Back() interface{} {
+	return q.arr[q.Size()-1]
+}
+
 func (q *Queue) Swap(i, j int) {
 	q.arr[i], q.arr[j] = q.arr[j], q.arr[i]
 }
 
+func (q *Queue) Empty() bool {
+	return q.Size() == 0
+}
+
 func (q *Queue) Clear() {
 	q.arr = make([]interface{}, 0)
+}
+
+func (q *Queue) Get(ind int) interface{} {
+	return q.arr[ind]
 }
 
 type QueueMessages struct {
