@@ -34,132 +34,140 @@ const (
 type CalmConsensuser struct {
 	Dispatcher
 
-	State        CalmState
-	Id           cont.NodeId // Только для логирования.
-	Nodes		 cont.Set
-	CurrentNodes cont.Set
-	VotedSet     cont.Set
-	CarriesSet   cont.CarriesSet
+	state        CalmState
+	id           cont.NodeId // Только для логирования.
+	nodes        cont.Set
+	currentNodes cont.Set
+	votedSet     cont.Set
+	carriesSet   cont.CarriesSet
 }
 
 func NewCalmConsensuser(dispatcher Dispatcher, conf Configuration, id int) *CalmConsensuser {
 	return &CalmConsensuser{
 		Dispatcher:   dispatcher,
-		State:        Initial,
-		Id:           cont.NodeId(id),
-		Nodes:		  conf.Info,
-		CurrentNodes: conf.Info,
+		state:        Initial,
+		id:           cont.NodeId(id),
+		nodes:        conf.Info,
+		currentNodes: conf.Info,
 	}
 }
 
 func (consensuser *CalmConsensuser) doBroadcast() {
-	msg := cont.NewMessageVote(consensuser.CarriesSet, consensuser.VotedSet, consensuser.CurrentNodes)
+	msg := cont.NewMessageVote(consensuser.carriesSet, consensuser.votedSet, consensuser.currentNodes)
 	consensuser.Broadcast(msg)
 }
 
 func (consensuser *CalmConsensuser) newVote(carry cont.Carry) cont.Message {
-	return cont.NewMessageVote(cont.NewCarriesSet(carry), consensuser.VotedSet, consensuser.CurrentNodes)
+	return cont.NewMessageVote(cont.NewCarriesSet(carry), consensuser.votedSet, consensuser.currentNodes)
 }
 
 // checks that all nodes are agreed on sequence of carries and nodes group
 func (consensuser *CalmConsensuser) Propose(carry cont.Carry) {
-	if consensuser.State != Initial {
-		log.Fatalf("state of consenuser %d isn't Initial on propose", consensuser.Id)
+	if consensuser.state != Initial {
+		log.Fatalf("state of consenuser %d isn't Initial on propose", consensuser.id)
 	}
 
-	log.Printf("Consensuser [%d]: Propose %d", consensuser.Id, carry.Id)
+	log.Printf("Consensuser [%d]: Propose %d", consensuser.id, carry.Id)
 	consensuser.OnVote(consensuser.newVote(carry))
 }
 
 func (consensuser *CalmConsensuser) checkInvariant(msg cont.Message) bool {
-	return consensuser.CarriesSet.Equal(msg.CarriesSet) &&
-		   consensuser.CurrentNodes.Equal(msg.NodesSet)
+	return consensuser.carriesSet.Equal(msg.CarriesSet) &&
+		   consensuser.currentNodes.Equal(msg.NodesSet)
 }
 
 func (consensuser *CalmConsensuser) OnBroadcast(msg cont.Message) {
-	if consensuser.CurrentNodes.Consist(uint32(msg.IdFrom)) == false {
+	if consensuser.currentNodes.Consist(uint32(msg.IdFrom)) == false {
+		log.Printf("Consensuser [%d]: dropped message out of group. idFrom: %d", consensuser.id, msg.IdFrom)
 		return
 	}
 
 	if msg.GetType() == cont.Vote {
 		consensuser.OnVote(msg)
 	} else if msg.GetType() == cont.Commit {
-		consensuser.OnCommit()
+		consensuser.onCommit()
 	}
 }
 
 func (consensuser *CalmConsensuser) mergeVotes(msg cont.Message) {
-	consensuser.CarriesSet.AddSet(msg.CarriesSet)
-	consensuser.CurrentNodes.Intersect(msg.NodesSet)
+	consensuser.carriesSet.AddSet(msg.CarriesSet)
+	consensuser.currentNodes.Intersect(msg.NodesSet)
 }
 
 func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
-	if consensuser.State == MayCommit && consensuser.checkInvariant(msg) == false {
-		consensuser.State = CannotCommit
+	if consensuser.state == MayCommit && consensuser.checkInvariant(msg) == false {
+		log.Printf("Consensuser [%d]: It's broken invariant", consensuser.id)
+		consensuser.state = CannotCommit
 	}
 
-	consensuser.VotedSet.AddSet(cont.NewSetFromValue(uint32(consensuser.Id)))
-	consensuser.VotedSet.AddSet(cont.NewSetFromValue(uint32(msg.IdFrom)))
+	consensuser.votedSet.AddSet(cont.NewSetFromValue(uint32(consensuser.id)))
+	consensuser.votedSet.AddSet(cont.NewSetFromValue(uint32(msg.IdFrom)))
 	consensuser.mergeVotes(msg) // don't use msg right after this line
-	consensuser.VotedSet.Intersect(consensuser.CurrentNodes)
-	if consensuser.Nodes.Size() >= consensuser.CurrentNodes.Size() * 2 {
-		log.Printf("Consensuser [%d]: Current set of nodes has become less than majority", consensuser.Id)
+	consensuser.votedSet.Intersect(consensuser.currentNodes)
+	if consensuser.nodes.Size() >= consensuser.currentNodes.Size() * 2 {
+		log.Printf("Consensuser [%d]: Current set of nodes has become less than majority", consensuser.id)
 		consensuser.Fail(LOSTMAJORITY)
 		return
 	}
 
-	if consensuser.State == Initial {
-		consensuser.State = MayCommit
+	if consensuser.state == Initial {
+		consensuser.state = MayCommit
 		consensuser.doBroadcast()
 	}
 
-	if consensuser.VotedSet.Equal(consensuser.CurrentNodes) {
-		if consensuser.State == MayCommit {
-			consensuser.OnCommit()
+	if consensuser.votedSet.Equal(consensuser.currentNodes) {
+		if consensuser.state == MayCommit {
+			consensuser.onCommit()
 		} else {
-			consensuser.State = MayCommit
-			consensuser.VotedSet.Clear()
-			consensuser.VotedSet.Insert(uint32(consensuser.Id))
+			log.Printf("Consensuser [%d]: Consensuser state has become MayCommit", consensuser.id)
+			consensuser.state = MayCommit
+			consensuser.votedSet.Clear()
+			consensuser.votedSet.Insert(uint32(consensuser.id))
 			consensuser.doBroadcast()
 		}
 	}
 }
 
-func (consensuser *CalmConsensuser) OnCommit() {
-	log.Printf("Consensuser [%d] has committed:", consensuser.Id)
-	consensuser.CommitSet(consensuser.CarriesSet)
+func (consensuser *CalmConsensuser) onCommit() {
+	log.Printf("Consensuser [%d] has committed:", consensuser.id)
+	consensuser.CommitSet(consensuser.carriesSet)
 	consensuser.Broadcast(consensuser.newCommitMessage())
-	consensuser.PrepareNextStep()
+	consensuser.prepareNextStep()
 }
 
 func (consensuser *CalmConsensuser) newCommitMessage() cont.Message {
-	return *cont.NewMessageCommit(consensuser.CarriesSet)
+	return *cont.NewMessageCommit(consensuser.carriesSet)
 }
 
-func (consensuser *CalmConsensuser) CleanUp() {
-	consensuser.State = Initial
-	consensuser.Nodes = consensuser.CurrentNodes
-	consensuser.CarriesSet.Clear()
-	consensuser.VotedSet.Clear()
+func (consensuser *CalmConsensuser) cleanUp() {
+	consensuser.state = Initial
+	consensuser.nodes = consensuser.currentNodes
+	consensuser.carriesSet.Clear()
+	consensuser.votedSet.Clear()
 }
 
-func (consensuser *CalmConsensuser) PrepareNextStep() {
-	consensuser.CleanUp()
+func (consensuser *CalmConsensuser) prepareNextStep() {
+	consensuser.cleanUp()
 	consensuser.IncStep()
 }
 
+func (consensuser *CalmConsensuser) GetId() cont.NodeId {
+	return consensuser.id
+}
+
 func (consensuser *CalmConsensuser) GetState() CalmState {
-	return consensuser.State
+	return consensuser.state
 }
 
 func (consensuser *CalmConsensuser) OnDisconnect(idFrom cont.NodeId) {
-	if consensuser.CurrentNodes.Consist(uint32(idFrom)) == false {
+	if consensuser.currentNodes.Consist(uint32(idFrom)) == false {
+		log.Printf("Consensuser [%d]: Disconnect message out of group from %d", consensuser.id, idFrom)
 		return
 	}
 
-	log.Printf("Consensuser [%d]: Disconnect %d node", consensuser.Id, int(idFrom))
+	log.Printf("Consensuser [%d]: Disconnect %d node", consensuser.id, int(idFrom))
 	disconnectedSet := cont.NewSetFromValue(uint32(idFrom))
-	consensuser.OnVote(cont.NewMessageVote(consensuser.CarriesSet,
-		                                   consensuser.VotedSet.Diff(disconnectedSet),
-										   consensuser.CurrentNodes.Diff(disconnectedSet)))
+	consensuser.OnVote(cont.NewMessageVote(consensuser.carriesSet,
+		                                   consensuser.votedSet.Diff(disconnectedSet),
+										   consensuser.currentNodes.Diff(disconnectedSet)))
 }

@@ -2,9 +2,7 @@ package containers
 
 import "sort"
 
-type Payload interface {
-	Type() string
-}
+type Payload int
 
 type ElementaryCarry struct {
 	id		int
