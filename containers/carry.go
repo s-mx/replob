@@ -2,7 +2,9 @@ package containers
 
 import "sort"
 
-type Payload int
+type Payload interface {
+	Type() string
+}
 
 type ElementaryCarry struct {
 	id		int
@@ -63,8 +65,8 @@ func (carry *Carry) NotEqual(otherCarry Carry) bool {
 }
 
 type CarriesSet struct {
-	StepId		StepId
-	arrCarry	[]Carry
+	StepId   StepId
+	ArrCarry []Carry
 }
 
 //type CarriesSet []Carry
@@ -72,10 +74,10 @@ type CarriesSet struct {
 func NewCarriesSet(args ...Carry) CarriesSet {
 	ptr := new(CarriesSet)
 	for _, val := range args {
-		ptr.arrCarry = append(ptr.arrCarry, val)
+		ptr.ArrCarry = append(ptr.ArrCarry, val)
 	}
 
-	sort.Sort(ById(*ptr))
+	sort.Sort(ById(ptr.ArrCarry))
 	return *ptr
 }
 
@@ -85,7 +87,7 @@ func (set *CarriesSet) Equal(otherSet CarriesSet) bool {
 	}
 
 	for ind := 0; ind < set.Size(); ind++ {
-		if set.arrCarry[ind].NotEqual(otherSet.arrCarry[ind]) {
+		if set.ArrCarry[ind].NotEqual(otherSet.ArrCarry[ind]) {
 			return false
 		}
 	}
@@ -98,7 +100,7 @@ func (set CarriesSet) NotEqual(otherSet CarriesSet) bool {
 }
 
 func (set *CarriesSet) AddSet(otherSet CarriesSet) {
-	for _, val := range otherSet.arrCarry {
+	for _, val := range otherSet.ArrCarry {
 		set.Append(val)
 	}
 }
@@ -119,7 +121,7 @@ func (seq ById) Swap(i, j int) {
 
 func (set *CarriesSet) Consist(carry Carry) bool {
 	for ind := 0; ind < set.Size(); ind++ {
-		if set.arrCarry[ind].Equal(carry) {
+		if set.ArrCarry[ind].Equal(carry) {
 			return true
 		}
 	}
@@ -132,18 +134,18 @@ func (set *CarriesSet) Append(carry Carry) {
 		return
 	}
 
-	set.arrCarry = append(set.arrCarry, carry)
-	sort.Sort(ById(*set))
+	set.ArrCarry = append(set.ArrCarry, carry)
+	sort.Sort(ById(set.ArrCarry))
 }
 
 func (set CarriesSet) Size() int {
-	return len(set.arrCarry)
+	return len(set.ArrCarry)
 }
 
 func (set CarriesSet) Get(ind int) Carry {
-	return set.arrCarry[ind]
+	return set.ArrCarry[ind]
 }
 
 func (set *CarriesSet) Clear() {
-	set.arrCarry = make([]Carry, 0)
+	set.ArrCarry = make([]Carry, 0)
 }

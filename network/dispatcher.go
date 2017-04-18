@@ -176,7 +176,7 @@ func (dispatcher *NetworkDispatcher) StopWait() {
 }
 
 func (dispatcher *NetworkDispatcher) CommitSet(carries cont.CarriesSet) {
-	dispatcher.replob.CommitSet(carries)
+	dispatcher.replob.CommitSet(dispatcher.myStepId, carries)
 }
 
 func (dispatcher *NetworkDispatcher) messageIsOutdated(message cont.Message) bool {

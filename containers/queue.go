@@ -62,6 +62,15 @@ type QueueMessages struct {
 	*Queue
 }
 
+func NewQueueMessagesN(N int) []QueueMessages {
+	arrQueue := make([]QueueMessages, N)
+	for ind := 0; ind < N; ind++ {
+		arrQueue[ind] = *NewQueueMessages()
+	}
+
+	return arrQueue
+}
+
 func NewQueueMessages() *QueueMessages {
 	return &QueueMessages{
 		Queue:NewQueue(),

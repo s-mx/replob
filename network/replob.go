@@ -2,12 +2,11 @@ package network
 
 import (
 	cont "github.com/s-mx/replob/containers"
-	"github.com/s-mx/replob/consensuser"
 	"log"
 )
 
 type Replob interface {
-	consensuser.Committer
+	CommitSet(id cont.StepId, set cont.CarriesSet)
 	Propose(value int)
 	getCarry() (cont.Carry, bool)
 	getSnapshot(lastStepId cont.StepId, curStepId cont.StepId) (cont.CarriesSet, bool)
@@ -71,7 +70,7 @@ func (storage *Storage) GetSnapshot(begin cont.StepId, end cont.StepId) (cont.Ca
 	resultSet := cont.CarriesSet{}
 	beginInd, endInd := storage.findRange(begin, end)
 	for ; beginInd < endInd; beginInd++ {
-		resultSet = append(resultSet, storage.queue.Get(int(beginInd)).(cont.Carry))
+		resultSet.ArrCarry = append(resultSet.ArrCarry, storage.queue.Get(int(beginInd)).(cont.Carry))
 	}
 
 	return cont.CarriesSet{}, true
@@ -93,7 +92,7 @@ func NewLocalReplob() *LocalReplob {
 
 func (replob *LocalReplob) CommitSet(stepId cont.StepId, carries cont.CarriesSet) {
 	for ind := 0; ind < carries.Size(); ind++ {
-		replob.storage.Commit(carries[ind], stepId)
+		replob.storage.Commit(carries.Get(ind), stepId)
 		log.Printf("Committed carry %d", carries.Get(ind).Id)
 	}
 }

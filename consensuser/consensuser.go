@@ -32,7 +32,6 @@ const (
 )
 
 type CalmConsensuser struct {
-	Committer
 	Dispatcher
 
 	State        CalmState
@@ -43,10 +42,8 @@ type CalmConsensuser struct {
 	CarriesSet   cont.CarriesSet
 }
 
-func NewCalmConsensuser(dispatcher Dispatcher, committer Committer,
-	conf Configuration, id int) *CalmConsensuser {
+func NewCalmConsensuser(dispatcher Dispatcher, conf Configuration, id int) *CalmConsensuser {
 	return &CalmConsensuser{
-		Committer:    committer,
 		Dispatcher:   dispatcher,
 		State:        Initial,
 		Id:           cont.NodeId(id),

@@ -12,6 +12,7 @@ const (
 )
 
 type Dispatcher interface {
+	CommitSet(carries cont.CarriesSet)
 	Broadcast(message cont.Message)
 	IncStep()
 	Stop() bool
@@ -29,6 +30,7 @@ type TestLocalDispatcher struct {
 	nodesStamps []cont.Stamp
 	queues      []cont.QueueMessages
 	dispatchers []*TestLocalDispatcher
+	committer	Committer
 	isRunning   bool
 
 	t 				*testing.T
@@ -55,7 +57,7 @@ func NewLocalDispatcher(id cont.NodeId, conf Configuration, numberDispatchers in
 		myStepId:    0,
 		myStamp:     0,
 		nodesStamps: make([]cont.Stamp, numberDispatchers),
-		queues:      make([]cont.QueueMessages, numberDispatchers),
+		queues:      cont.NewQueueMessagesN(numberDispatchers),
 		dispatchers: make([]*TestLocalDispatcher, numberDispatchers),
 		isRunning:   true,
 		t:           t,
@@ -124,6 +126,11 @@ func (dispatcher *TestLocalDispatcher) OnReceive(message cont.Message) {
 
 	dispatcher.updateMessageStamp(message)
 	dispatcher.cons.OnBroadcast(message)
+}
+
+func (dispatcher *TestLocalDispatcher) CommitSet(carries cont.CarriesSet) {
+	// TODO: разделить операции по типу и занести в лог здесь
+	dispatcher.committer.CommitSet(carries)
 }
 
 func (dispatcher *TestLocalDispatcher) IsRunning() bool {

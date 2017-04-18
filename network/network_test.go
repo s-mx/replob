@@ -77,7 +77,7 @@ func TestTwoNodes(t *testing.T) {
 func TestTwoConsensusers(t *testing.T) {
 	// FIXME: Иногда падает, когда не может сделать bind из-за занятого порта
 
-	carries := containers.NewCarriesN(3)
+	values := []int {1, 2, 3}
 	config := NewLocalNetConfiguration(2)
 	replob1 := NewLocalReplob()
 	replob2 := NewLocalReplob()
@@ -87,9 +87,9 @@ func TestTwoConsensusers(t *testing.T) {
 	disp1.Start()
 	disp2.Start()
 
-	replob1.Propose(carries[0])
-	replob2.Propose(carries[1])
-	replob1.Propose(carries[2])
+	replob1.Propose(values[0])
+	replob2.Propose(values[1])
+	replob1.Propose(values[2])
 
 	disp1.StopWait()
 	disp2.StopWait()
