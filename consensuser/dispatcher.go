@@ -9,6 +9,7 @@ import (
 
 const (
 	LOSTMAJORITY = iota
+	WRONG_COMMIT
 )
 
 type Dispatcher interface {
@@ -130,7 +131,20 @@ func (dispatcher *TestLocalDispatcher) OnReceive(message cont.Message) {
 
 func (dispatcher *TestLocalDispatcher) CommitSet(carries cont.CarriesSet) {
 	// TODO: разделить операции по типу и занести в лог здесь
-	dispatcher.committer.CommitSet(carries)
+
+	algorithmCarries, membershipCarries := carries.SplitByType()
+
+	if algorithmCarries.Size() > 0 {
+		dispatcher.committer.CommitSet(algorithmCarries)
+	}
+
+	if membershipCarries.Size() > 0 {
+		dispatcher.applyMembershipChanges(membershipCarries)
+	}
+}
+
+func (dispatcher *TestLocalDispatcher) applyMembershipChanges(carries cont.CarriesSet) {
+
 }
 
 func (dispatcher *TestLocalDispatcher) IsRunning() bool {

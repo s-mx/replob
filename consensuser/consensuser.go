@@ -67,7 +67,7 @@ func (consensuser *CalmConsensuser) Propose(carry cont.Carry) {
 		log.Fatalf("state of consenuser %d isn't Initial on propose", consensuser.id)
 	}
 
-	log.Printf("Consensuser [%d]: Propose %d", consensuser.id, carry.Id)
+	log.Printf("Consensuser [%d]: Propose %d", consensuser.id, carry.GetId())
 	consensuser.OnVote(consensuser.newVote(carry))
 }
 

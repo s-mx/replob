@@ -1,8 +1,54 @@
 package containers
 
-import "sort"
+import (
+	"sort"
+	"encoding/binary"
+)
 
-type Payload int
+// Types of carries
+const (
+	ALGORITHM_CARRY   = "ALGORITHM" // кажется, что не нужно
+	MEMBERSHIP_CHANGE = "MEMBERSHIP_CHANGE"
+)
+
+type Payload interface {
+	Type() string
+	Bytes() []byte
+}
+
+type SimpleInt struct {
+	value int
+}
+
+func NewSimpleInt(value int) *SimpleInt {
+	return &SimpleInt{value:value,}
+}
+
+func (obj *SimpleInt) Type() string {
+	return "Int32"
+}
+
+func (obj *SimpleInt) Bytes() []byte {
+	bs := make([]byte, 4)
+	binary.LittleEndian.PutUint32(bs, uint32(obj.value))
+	return bs
+}
+
+type MembershipChangeCarry struct {
+	//TODO: Пока что не ясно что нужно
+}
+
+func NewMembershipChangeCarry() *MembershipChangeCarry {
+	return &MembershipChangeCarry{}
+}
+
+func (obj *MembershipChangeCarry) Type() string {
+	return MEMBERSHIP_CHANGE
+}
+
+func (obj *MembershipChangeCarry) Bytes() []byte {
+	return make([]byte, 1)
+}
 
 type ElementaryCarry struct {
 	id		int
@@ -16,9 +62,25 @@ func NewElementaryCarry(id int, val Payload) ElementaryCarry {
 	}
 }
 
+func (obj *ElementaryCarry) GetId() int {
+	return obj.id
+}
+
+func (obj *ElementaryCarry) GetPayload() Payload {
+	return obj.value
+}
+
 type Carry struct {
-	Id    int
+	id    int
 	value []ElementaryCarry
+}
+
+func (carry *Carry) GetId() int {
+	return carry.id
+}
+
+func (carry *Carry) GetElementaryCarries() []ElementaryCarry {
+	return carry.value
 }
 
 func (carry *Carry) Size() int {
@@ -32,7 +94,7 @@ func (carry *Carry) Append(elem ElementaryCarry) {
 func NewCarries(args ...ElementaryCarry) []Carry {
 	result := make([]Carry, len(args))
 	for ind := 0; ind < len(args); ind++ {
-		result[ind] = NewCarry(ind, args[ind])
+		result[ind] = NewCarry(ind, []ElementaryCarry{args[ind]})
 	}
 
 	return result
@@ -41,21 +103,22 @@ func NewCarries(args ...ElementaryCarry) []Carry {
 func NewCarriesN(number int) []Carry {
 	result := make([]Carry, number)
 	for ind := 0; ind < number; ind++ {
-		result[ind] = NewCarry(ind, NewElementaryCarry(ind, Payload(number+1)))
+		elemCarry := NewElementaryCarry(ind, Payload(NewSimpleInt(number+1)))
+		result[ind] = NewCarry(ind, []ElementaryCarry{elemCarry})
 	}
 
 	return result
 }
 
-func NewCarry(id int, val ElementaryCarry) Carry {
+func NewCarry(id int, val []ElementaryCarry) Carry {
 	return Carry{
-		Id:id,
-		value:[]ElementaryCarry{val},
+		id:    id,
+		value: val,
 	}
 }
 
 func (carry *Carry) Equal(otherCarry Carry) bool {
-	return carry.Id == otherCarry.Id
+	return carry.id == otherCarry.id
 }
 
 func (carry *Carry) NotEqual(otherCarry Carry) bool {
@@ -77,6 +140,34 @@ func NewCarriesSet(args ...Carry) CarriesSet {
 
 	sort.Sort(ById(ptr.ArrCarry))
 	return *ptr
+}
+
+func (set *CarriesSet) SplitByType() (CarriesSet, CarriesSet) {
+	algorithmCarries := NewCarriesSet()
+	membershipCarries := NewCarriesSet()
+
+	for _, carry := range set.ArrCarry {
+		elemCarries := carry.GetElementaryCarries()
+		algorithmCarry := NewCarry(carry.GetId(), make([]ElementaryCarry, 0))
+		membershipCarry := NewCarry(carry.GetId(), make([]ElementaryCarry, 0))
+		for _, elemCarry := range elemCarries {
+			payload := elemCarry.GetPayload()
+			if payload.Type() == MEMBERSHIP_CHANGE {
+				membershipCarries.Append(carry)
+			} else {
+				algorithmCarry.Append(elemCarry) // TODO: придумать что-то получше
+			}
+		}
+
+		if algorithmCarry.Size() > 0 {
+			algorithmCarries.Append(algorithmCarry)
+		}
+		if membershipCarry.Size() > 0 {
+			membershipCarries.Append(membershipCarry)
+		}
+	}
+
+	return algorithmCarries, membershipCarries
 }
 
 func (set *CarriesSet) Equal(otherSet CarriesSet) bool {
@@ -110,7 +201,7 @@ func (seq ById) Len() int {
 }
 
 func (seq ById) Less(i, j int) bool {
-	return seq[i].Id < seq[j].Id
+	return seq[i].id < seq[j].id
 }
 
 func (seq ById) Swap(i, j int) {

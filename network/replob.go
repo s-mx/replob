@@ -93,7 +93,7 @@ func NewLocalReplob() *LocalReplob {
 func (replob *LocalReplob) CommitSet(stepId cont.StepId, carries cont.CarriesSet) {
 	for ind := 0; ind < carries.Size(); ind++ {
 		replob.storage.Commit(carries.Get(ind), stepId)
-		log.Printf("Committed carry %d", carries.Get(ind).Id)
+		log.Printf("Committed carry %d", carries.Get(ind).id)
 	}
 }
 
