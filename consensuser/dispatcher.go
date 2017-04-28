@@ -20,6 +20,7 @@ type Dispatcher interface {
 	StopWait()
 	Fail(int)
 	Propose(carry cont.Carry)
+	ProposeElementaryCarry(carry cont.ElementaryCarry)
 }
 
 type TestLocalDispatcher struct {
@@ -176,6 +177,10 @@ func (dispatcher *TestLocalDispatcher) proceedFirstMessage(toId int) {
 
 	message := dispatcher.queues[toId].Pop()
 	dispatcher.dispatchers[toId].OnReceive(message)
+}
+
+func (dispatcher *TestLocalDispatcher) ProposeElementaryCarry(carry cont.ElementaryCarry) {
+	// FIXME: IMPLEMENT (may be)
 }
 
 func (dispatcher *TestLocalDispatcher) proceedRandomMessage(generator *rand.Rand, probSwap float32) bool {

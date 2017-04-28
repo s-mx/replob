@@ -90,7 +90,7 @@ func (committer *TestLocalCommiter) CommitSet(set cont.CarriesSet) {
 	for ind := 0; ind < sizeSet; ind++ {
 		carry := set.Get(ind)
 		log.Printf("     Carry %d committied", carry.GetId())
-		committer.Commit(carry)
+		committer.Commit(*carry)
 	}
 }
 

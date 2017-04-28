@@ -23,6 +23,7 @@ type NetworkDispatcher struct {
 	nodesStamps				[]cont.Stamp
 
 	replob					Replob
+	batcher					Batcher
 
 	channelStop				chan interface{}
 
@@ -61,13 +62,18 @@ func NewNetworkDispatcher(id int, config *Configuration, reblob Replob) *Network
 
 func NewConsensuser(id int, config* Configuration, replob Replob) (*NetworkDispatcher, *consensus.CalmConsensuser) {
 	disp := NewNetworkDispatcher(id, config, replob)
-	cons := consensus.NewCalmConsensuser(disp, disp, config.GetMasterlessConfiguration(), id)
+	cons := consensus.NewCalmConsensuser(disp, config.GetMasterlessConfiguration(), id)
 	disp.cons = cons
 	return disp, cons
 }
 
 func (dispatcher *NetworkDispatcher) Propose(carry cont.Carry) {
-	dispatcher.cons.Propose(carry)
+	// FIXME: IMPLEMENT
+	//dispatcher.batcher.Propose(carry)
+}
+
+func (dispatcher *NetworkDispatcher) ProposeElementaryCarry(carry cont.ElementaryCarry) {
+	dispatcher.batcher.Propose(carry)
 }
 
 func (dispatcher *NetworkDispatcher) StartClients() {
@@ -99,18 +105,19 @@ func (dispatcher *NetworkDispatcher) Loop() {
 		}
 
 		if dispatcher.cons.GetState() == consensus.Initial {
-			carry, ok := dispatcher.replob.getCarry()
+			carry, ok := dispatcher.batcher.getCarry()
 			if ok {
 				dispatcher.cons.Propose(carry)
+				continue
 			}
-
-			continue
 		}
 
 		select {
 		case message := <-dispatcher.ServerService.channelMessage:
 			dispatcher.OnReceive(message)
 			break
+		case carry := <-dispatcher.batcher.channel:
+			dispatcher.cons.Propose(carry)
 		case <-time.After(100*time.Millisecond): // FIXME: use flags
 		}
 	}

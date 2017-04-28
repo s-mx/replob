@@ -231,8 +231,8 @@ func (set CarriesSet) Size() int {
 	return len(set.ArrCarry)
 }
 
-func (set CarriesSet) Get(ind int) Carry {
-	return set.ArrCarry[ind]
+func (set CarriesSet) Get(ind int) *Carry {
+	return &set.ArrCarry[ind]
 }
 
 func (set *CarriesSet) Clear() {
