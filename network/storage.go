@@ -49,16 +49,18 @@ func (storage *Storage) findRange(beginStep cont.StepId, endStep cont.StepId) (i
 	return begin, end
 }
 
-func (storage *Storage) GetSnapshot(begin cont.StepId, end cont.StepId) (cont.CarriesSet, bool) {
+func (storage *Storage) GetSnapshot(begin cont.StepId, end cont.StepId) (cont.Carry, bool) {
 	if storage.checkIndexes(int(begin), int(end)) == false {
-		return cont.CarriesSet{}, false
+		return cont.Carry{}, false
 	}
 
-	resultSet := cont.CarriesSet{}
+	resultSet := cont.Carry{}
 	beginInd, endInd := storage.findRange(begin, end)
 	for ; beginInd < endInd; beginInd++ {
-		resultSet.ArrCarry = append(resultSet.ArrCarry, storage.queue.Get(int(beginInd)).(cont.Carry))
+		//TODO: IMPLEMENT
+		//resultSet.Append()
+		//resultSet.ArrCarry = append(resultSet.ArrCarry, storage.queue.Get(int(beginInd)).(cont.Carry))
 	}
 
-	return cont.CarriesSet{}, true
+	return resultSet, true
 }

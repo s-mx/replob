@@ -7,7 +7,7 @@ import (
 
 type Batcher struct {
 	batchSize	int
-	carry 		cont.Carry
+	carry 		*cont.Carry
 	channel		chan cont.Carry
 	dispatcher	*NetworkDispatcher
 
@@ -27,11 +27,11 @@ func (batcher *Batcher) Propose(carry cont.Carry) {
 	defer batcher.mutex.Unlock()
 
 	for _, elemCarry := range carry.GetElementaryCarries() {
-		batcher.carry.Append(elemCarry) // FIXME: добавлять до batchSize
+		batcher.carry.Append(&elemCarry) // FIXME: добавлять до batchSize
 	}
 
 	if batcher.dispatcher.canPropose() { // TODO: потестить
-		batcher.dispatcher.Propose(batcher.carry)
+		batcher.dispatcher.Propose(*batcher.carry)
 		batcher.carry = cont.NewCarry([]cont.ElementaryCarry{})
 	}
 }
@@ -46,7 +46,7 @@ func (batcher *Batcher) hasBatch() bool {
 	return batcher.IsEmpty() == false
 }
 
-func (batcher *Batcher) popBatch() (cont.Carry, bool) {
+func (batcher *Batcher) popBatch() (*cont.Carry, bool) {
 	batcher.mutex.Lock()
 	defer batcher.mutex.Unlock()
 

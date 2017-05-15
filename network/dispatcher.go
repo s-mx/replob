@@ -76,7 +76,7 @@ func (dispatcher *NetworkDispatcher) canPropose() bool {
 }
 
 func (dispatcher *NetworkDispatcher) ProposeElementaryCarry(carry cont.ElementaryCarry) {
-	dispatcher.batcher.Propose(cont.NewCarry([]cont.ElementaryCarry{carry}))
+	dispatcher.batcher.Propose(*cont.NewCarry([]cont.ElementaryCarry{carry}))
 }
 
 func (dispatcher *NetworkDispatcher) StartClients() {
@@ -178,11 +178,11 @@ func (dispatcher *NetworkDispatcher) StopWait() {
 	}
 }
 
-func (dispatcher *NetworkDispatcher) CommitSet(carries cont.CarriesSet) {
+func (dispatcher *NetworkDispatcher) CommitSet(carries cont.Carry) {
 	dispatcher.replob.CommitSet(dispatcher.myStepId, carries)
 
 	if carry, ok := dispatcher.batcher.popBatch(); ok {
-		dispatcher.Propose(carry)
+		dispatcher.Propose(*carry)
 	}
 }
 

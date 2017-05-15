@@ -6,9 +6,9 @@ import (
 )
 
 type Replob interface {
-	CommitSet(id cont.StepId, set cont.CarriesSet) // TODO: Are we need this?
+	CommitSet(id cont.StepId, set cont.Carry) // TODO: Are we need this?
 	Propose(cont.Carry)
-	GetSnapshot(lastStepId cont.StepId, curStepId cont.StepId) (cont.CarriesSet, bool)
+	GetSnapshot(lastStepId cont.StepId, curStepId cont.StepId) (cont.Carry, bool)
 }
 
 type element struct {
@@ -29,18 +29,20 @@ func NewLocalReplob() *LocalReplob {
 	}
 }
 
-func (replob *LocalReplob) CommitSet(stepId cont.StepId, carries cont.CarriesSet) {
+func (replob *LocalReplob) CommitSet(stepId cont.StepId, carries cont.Carry) {
 	for ind := 0; ind < carries.Size(); ind++ {
-		replob.storage.Commit(*carries.Get(ind), stepId)
-		log.Printf("Committed carry %d", carries.Get(ind).GetId()) // FIXME:
+		carry, _ := carries.Get(ind)
+		// TODO: разобраться с этим
+		// replob.storage.Commit(*carry, stepId)
+		log.Printf("Committed carry %d", carry.GetId()) // FIXME:
 	}
 }
 
 func (replob *LocalReplob) Propose(carry cont.Carry) { // TODO: here something else against int
-	replob.disp.ProposeElementaryCarry(cont.NewElementaryCarry(replob.counter, cont.NewSimpleInt(value)))
+	replob.disp.Propose(carry)
 	replob.counter++
 }
 
-func (replob *LocalReplob) getSnapshot(curStepId cont.StepId, lastStepId cont.StepId) (cont.CarriesSet, bool) {
+func (replob *LocalReplob) getSnapshot(curStepId cont.StepId, lastStepId cont.StepId) (cont.Carry, bool) {
 	return replob.storage.GetSnapshot(curStepId, lastStepId+1)
 }
