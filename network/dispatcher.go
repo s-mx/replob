@@ -68,12 +68,15 @@ func NewConsensuser(id int, config* Configuration, replob Replob) (*NetworkDispa
 }
 
 func (dispatcher *NetworkDispatcher) Propose(carry cont.Carry) {
-	// FIXME: IMPLEMENT
-	//dispatcher.batcher.Propose(carry)
+	dispatcher.batcher.Propose(carry)
+}
+
+func (dispatcher *NetworkDispatcher) canPropose() bool {
+	return dispatcher.cons.GetState() == consensus.Initial
 }
 
 func (dispatcher *NetworkDispatcher) ProposeElementaryCarry(carry cont.ElementaryCarry) {
-	dispatcher.batcher.Propose(carry)
+	dispatcher.batcher.Propose(cont.NewCarry([]cont.ElementaryCarry{carry}))
 }
 
 func (dispatcher *NetworkDispatcher) StartClients() {
@@ -104,20 +107,13 @@ func (dispatcher *NetworkDispatcher) Loop() {
 			continue
 		}
 
-		if dispatcher.cons.GetState() == consensus.Initial {
-			carry, ok := dispatcher.batcher.getCarry()
-			if ok {
-				dispatcher.cons.Propose(carry)
-				continue
-			}
-		}
-
 		select {
 		case message := <-dispatcher.ServerService.channelMessage:
 			dispatcher.OnReceive(message)
 			break
 		case carry := <-dispatcher.batcher.channel:
 			dispatcher.cons.Propose(carry)
+			break
 		case <-time.After(100*time.Millisecond): // FIXME: use flags
 		}
 	}
@@ -184,6 +180,10 @@ func (dispatcher *NetworkDispatcher) StopWait() {
 
 func (dispatcher *NetworkDispatcher) CommitSet(carries cont.CarriesSet) {
 	dispatcher.replob.CommitSet(dispatcher.myStepId, carries)
+
+	if carry, ok := dispatcher.batcher.popBatch(); ok {
+		dispatcher.Propose(carry)
+	}
 }
 
 func (dispatcher *NetworkDispatcher) messageIsOutdated(message cont.Message) bool {

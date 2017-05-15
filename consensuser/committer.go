@@ -6,20 +6,20 @@ import (
 )
 
 type Committer interface {
-	CommitSet(set cont.CarriesSet)
+	CommitSet(set cont.Carry)
 }
 
 type testCommitHelper struct {
-	arrNodeCarries [][]cont.Carry
-	DesiredCarries []cont.Carry
+	arrNodeCarries [][]cont.ElementaryCarry
+	DesiredCarries []cont.ElementaryCarry
 	arrDispatchers []*TestLocalDispatcher
 }
 
 func newTestCommitHelper(numberNodes int,
-						 desiredCarries []cont.Carry,
+						 desiredCarries []cont.ElementaryCarry,
 	                     arrDispatchers []*TestLocalDispatcher) *testCommitHelper {
 	return &testCommitHelper{
-		arrNodeCarries: make([][]cont.Carry, numberNodes),
+		arrNodeCarries: make([][]cont.ElementaryCarry, numberNodes),
 		DesiredCarries: desiredCarries,
 		arrDispatchers: arrDispatchers,
 	}
@@ -42,7 +42,6 @@ func (helper *testCommitHelper) isRunning(ind int) bool {
 func (helper *testCommitHelper) getCommonLength(ind int) int {
 	a := len(helper.DesiredCarries)
 	b := len(helper.arrNodeCarries[ind])
-	// Кажется, в Go нету функции минимума для целых чисел
 	if a < b {
 		return a
 	} else {
@@ -59,7 +58,7 @@ func (helper *testCommitHelper) CheckSafety() bool {
 
 		commonLength := helper.getCommonLength(indNode)
 		for indCarry := 0; indCarry < commonLength; indCarry++ {
-			if helper.arrNodeCarries[indNode][indCarry].NotEqual(helper.DesiredCarries[indCarry]) {
+			if helper.arrNodeCarries[indNode][indCarry].NotEqual(&helper.DesiredCarries[indCarry]) {
 				return false
 			}
 		}
@@ -80,26 +79,26 @@ func NewTestLocalCommitter(idNode cont.NodeId, ptrHellper *testCommitHelper) *Te
 	}
 }
 
-func (committer *TestLocalCommiter) Commit(carry cont.Carry) {
+func (committer *TestLocalCommiter) Commit(elemCarry cont.ElementaryCarry) {
 	curCarries := &committer.ptrAllCarries.arrNodeCarries[committer.idNode]
-	*curCarries = append(*curCarries, carry)
+	*curCarries = append(*curCarries, elemCarry)
 }
 
-func (committer *TestLocalCommiter) CommitSet(set cont.CarriesSet) {
-	sizeSet := set.Size()
+func (committer *TestLocalCommiter) CommitSet(carry cont.Carry) {
+	sizeSet := carry.Size()
 	for ind := 0; ind < sizeSet; ind++ {
-		carry := set.Get(ind)
-		log.Printf("     Carry %d committied", carry.GetId())
-		committer.Commit(*carry)
+		elem, _ := carry.Get(ind)
+		log.Printf("     Carry %d committied", elem.GetId())
+		committer.Commit(*elem)
 	}
 }
 
-func (committer *TestLocalCommiter) CheckLastCarry(id int, carry cont.Carry) bool {
+func (committer *TestLocalCommiter) CheckLastCarry(id int, elemCarry cont.ElementaryCarry) bool {
 	carries := committer.ptrAllCarries.arrNodeCarries[id]
 	lastInd := len(carries) - 1
 	if lastInd < 0 {
 		return false
 	}
 
-	return carries[lastInd].Equal(carry)
+	return carries[lastInd].Equal(&elemCarry)
 }

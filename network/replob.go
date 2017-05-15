@@ -7,8 +7,8 @@ import (
 
 type Replob interface {
 	CommitSet(id cont.StepId, set cont.CarriesSet) // TODO: Are we need this?
-	Propose(value int)
-	getSnapshot(lastStepId cont.StepId, curStepId cont.StepId) (cont.CarriesSet, bool)
+	Propose(cont.Carry)
+	GetSnapshot(lastStepId cont.StepId, curStepId cont.StepId) (cont.CarriesSet, bool)
 }
 
 type element struct {
@@ -32,11 +32,11 @@ func NewLocalReplob() *LocalReplob {
 func (replob *LocalReplob) CommitSet(stepId cont.StepId, carries cont.CarriesSet) {
 	for ind := 0; ind < carries.Size(); ind++ {
 		replob.storage.Commit(*carries.Get(ind), stepId)
-		log.Printf("Committed carry %d", carries.Get(ind).GetId())
+		log.Printf("Committed carry %d", carries.Get(ind).GetId()) // FIXME:
 	}
 }
 
-func (replob *LocalReplob) Propose(value int) { // TODO: here something else against int
+func (replob *LocalReplob) Propose(carry cont.Carry) { // TODO: here something else against int
 	replob.disp.ProposeElementaryCarry(cont.NewElementaryCarry(replob.counter, cont.NewSimpleInt(value)))
 	replob.counter++
 }

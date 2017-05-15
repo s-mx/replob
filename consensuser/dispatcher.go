@@ -13,7 +13,7 @@ const (
 )
 
 type Dispatcher interface {
-	CommitSet(carries cont.CarriesSet)
+	CommitSet(carries cont.Carry)
 	Broadcast(message cont.Message)
 	IncStep()
 	Stop() bool
@@ -130,13 +130,13 @@ func (dispatcher *TestLocalDispatcher) OnReceive(message cont.Message) {
 	dispatcher.cons.OnBroadcast(message)
 }
 
-func (dispatcher *TestLocalDispatcher) CommitSet(carries cont.CarriesSet) {
+func (dispatcher *TestLocalDispatcher) CommitSet(carries cont.Carry) {
 	// TODO: разделить операции по типу и занести в лог здесь
 
 	algorithmCarries, membershipCarries := carries.SplitByType()
 
 	if algorithmCarries.Size() > 0 {
-		dispatcher.committer.CommitSet(algorithmCarries)
+		dispatcher.committer.CommitSet(*algorithmCarries)
 	}
 
 	if membershipCarries.Size() > 0 {
@@ -144,8 +144,8 @@ func (dispatcher *TestLocalDispatcher) CommitSet(carries cont.CarriesSet) {
 	}
 }
 
-func (dispatcher *TestLocalDispatcher) applyMembershipChanges(carries cont.CarriesSet) {
-
+func (dispatcher *TestLocalDispatcher) applyMembershipChanges(carries *cont.Carry) {
+	// TODO: IMPLEMENT
 }
 
 func (dispatcher *TestLocalDispatcher) IsRunning() bool {

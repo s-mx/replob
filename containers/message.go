@@ -28,24 +28,24 @@ type Message struct {
 	Stamp       Stamp
 	StepId      StepId
 	VotedSet    Set
-	CarriesSet  CarriesSet
+	Carry       Carry
 	NodesSet    Set
 	IdFrom      NodeId
 }
 
-func NewMessageVote(carrySet CarriesSet, votedSet Set, nodesSet Set) Message {
+func NewMessageVote(carry Carry, votedSet Set, nodesSet Set) Message {
 	return Message{
         MessageType: Vote,
-        CarriesSet:  carrySet,
+        Carry:       carry,
         VotedSet:    votedSet,
         NodesSet:    nodesSet,
     }
 }
 
-func NewMessageCommit(CarrySet CarriesSet) *Message {
+func NewMessageCommit(carry Carry) *Message {
 	return &Message{
         MessageType: Commit,
-        CarriesSet:  CarrySet,
+        Carry:       carry,
     }
 }
 
@@ -80,7 +80,7 @@ func (msg *Message) Equal(other Message) bool {
 	}
 
 	if msg.MessageType == Commit {
-		if msg.NodesSet.Equal(other.NodesSet) && msg.CarriesSet.Equal(other.CarriesSet) &&
+		if msg.NodesSet.Equal(other.NodesSet) && msg.Carry.Equal(other.Carry) &&
 			msg.Stamp == other.Stamp && msg.StepId == other.StepId {
 			return true
 		}

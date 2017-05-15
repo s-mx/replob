@@ -39,26 +39,27 @@ type CalmConsensuser struct {
 	nodes        cont.Set
 	currentNodes cont.Set
 	votedSet     cont.Set
-	carriesSet   cont.CarriesSet
+	carry        *cont.Carry
 }
 
 func NewCalmConsensuser(dispatcher Dispatcher, conf Configuration, id int) *CalmConsensuser {
 	return &CalmConsensuser{
-		Dispatcher:   dispatcher,
-		state:        Initial,
-		id:           cont.NodeId(id),
-		nodes:        conf.Info,
-		currentNodes: conf.Info,
+		Dispatcher:		dispatcher,
+		state:			Initial,
+		id:				cont.NodeId(id),
+		nodes:			conf.Info,
+		currentNodes:	conf.Info,
+		carry:			cont.NewCarry([]cont.ElementaryCarry{}),
 	}
 }
 
 func (consensuser *CalmConsensuser) doBroadcast() {
-	msg := cont.NewMessageVote(consensuser.carriesSet, consensuser.votedSet, consensuser.currentNodes)
+	msg := cont.NewMessageVote(*consensuser.carry, consensuser.votedSet, consensuser.currentNodes)
 	consensuser.Broadcast(msg)
 }
 
 func (consensuser *CalmConsensuser) newVote(carry cont.Carry) cont.Message {
-	return cont.NewMessageVote(cont.NewCarriesSet(carry), consensuser.votedSet, consensuser.currentNodes)
+	return cont.NewMessageVote(carry, consensuser.votedSet, consensuser.currentNodes)
 }
 
 // checks that all nodes are agreed on sequence of carries and nodes group
@@ -67,12 +68,13 @@ func (consensuser *CalmConsensuser) Propose(carry cont.Carry) {
 		log.Fatalf("state of consenuser %d isn't Initial on propose", consensuser.id)
 	}
 
-	log.Printf("Consensuser [%d]: Propose %d", consensuser.id, carry.GetId())
+	firstCarry, _ := carry.GetFirst()
+	log.Printf("Consensuser [%d]: Propose %d", consensuser.id, firstCarry.GetId())
 	consensuser.OnVote(consensuser.newVote(carry))
 }
 
 func (consensuser *CalmConsensuser) checkInvariant(msg cont.Message) bool {
-	return consensuser.carriesSet.Equal(msg.CarriesSet) &&
+	return consensuser.carry.Equal(msg.Carry) &&
 		   consensuser.currentNodes.Equal(msg.NodesSet)
 }
 
@@ -90,7 +92,7 @@ func (consensuser *CalmConsensuser) OnBroadcast(msg cont.Message) {
 }
 
 func (consensuser *CalmConsensuser) mergeVotes(msg cont.Message) {
-	consensuser.carriesSet.AddSet(msg.CarriesSet)
+	consensuser.carry = consensuser.carry.Union(&msg.Carry)
 	consensuser.currentNodes.Intersect(msg.NodesSet)
 }
 
@@ -130,19 +132,19 @@ func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {
 
 func (consensuser *CalmConsensuser) onCommit() {
 	log.Printf("Consensuser [%d] has committed:", consensuser.id)
-	consensuser.CommitSet(consensuser.carriesSet)
+	consensuser.CommitSet(*consensuser.carry)
 	consensuser.Broadcast(consensuser.newCommitMessage())
 	consensuser.prepareNextStep()
 }
 
 func (consensuser *CalmConsensuser) newCommitMessage() cont.Message {
-	return *cont.NewMessageCommit(consensuser.carriesSet)
+	return *cont.NewMessageCommit(*consensuser.carry)
 }
 
 func (consensuser *CalmConsensuser) cleanUp() {
 	consensuser.state = Initial
 	consensuser.nodes = consensuser.currentNodes
-	consensuser.carriesSet.Clear()
+	consensuser.carry.Clear()
 	consensuser.votedSet.Clear()
 }
 
@@ -167,7 +169,7 @@ func (consensuser *CalmConsensuser) OnDisconnect(idFrom cont.NodeId) {
 
 	log.Printf("Consensuser [%d]: Disconnect %d node", consensuser.id, int(idFrom))
 	disconnectedSet := cont.NewSetFromValue(uint32(idFrom))
-	consensuser.OnVote(cont.NewMessageVote(consensuser.carriesSet,
+	consensuser.OnVote(cont.NewMessageVote(*consensuser.carry,
 		                                   consensuser.votedSet.Diff(disconnectedSet),
 										   consensuser.currentNodes.Diff(disconnectedSet)))
 }

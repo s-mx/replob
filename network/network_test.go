@@ -91,7 +91,7 @@ func TestTwoConsensusers(t *testing.T) {
 	replob2.Propose(values[1])
 	replob1.Propose(values[2])
 
-	time.Sleep(5 * time.Second)
+	//time.Sleep(5 * time.Second)
 
 	disp1.StopWait()
 	disp2.StopWait()

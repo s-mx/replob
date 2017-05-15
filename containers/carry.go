@@ -1,8 +1,8 @@
 package containers
 
 import (
-	"sort"
 	"encoding/binary"
+	"errors"
 )
 
 // Types of carries
@@ -51,7 +51,7 @@ func (obj *MembershipChangeCarry) Bytes() []byte {
 }
 
 type ElementaryCarry struct {
-	id		int
+	id		int		//TODO: move to int64
 	value	Payload
 }
 
@@ -66,117 +66,142 @@ func (obj *ElementaryCarry) GetId() int {
 	return obj.id
 }
 
+func (obj *ElementaryCarry) Less(rgh *ElementaryCarry) bool {
+	return obj.id < rgh.id // TODO: уточнить это
+}
+
 func (obj *ElementaryCarry) GetPayload() Payload {
 	return obj.value
 }
 
-type Carry struct {
-	id    int
-	value []ElementaryCarry
+func (obj *ElementaryCarry) Equal(rgh *ElementaryCarry) bool {
+	return obj.id == rgh.id
 }
 
-func (carry *Carry) GetId() int {
-	return carry.id
+func (obj *ElementaryCarry) NotEqual(rgh *ElementaryCarry) bool {
+	return ! obj.Equal(rgh)
+}
+
+type Carry struct {
+	arrCarry []ElementaryCarry
 }
 
 func (carry *Carry) GetElementaryCarries() []ElementaryCarry {
-	return carry.value
+	return carry.arrCarry
 }
 
 func (carry *Carry) Size() int {
-	return len(carry.value)
+	return len(carry.arrCarry)
 }
 
-func (carry *Carry) Append(elem ElementaryCarry) {
-	carry.value = append(carry.value, elem)
+func (carry *Carry) Clear() {
+	carry.arrCarry = make([]ElementaryCarry, 0)
+}
+
+func (carry *Carry) GetCarry(ind int) (*Carry, error) {
+	if ind < 0 || ind >= carry.Size() {
+		return nil, errors.New("out of range")
+	}
+
+	return NewCarry([]ElementaryCarry{carry.arrCarry[ind]}), nil
+}
+
+func (carry *Carry) Get(ind int) (*ElementaryCarry, error) {
+	if ind < 0 || ind >= carry.Size() {
+		return nil, errors.New("out of range")
+	}
+
+	return &carry.arrCarry[ind], nil
+}
+
+func (carry *Carry) GetFirst() (*ElementaryCarry, error) {
+	return carry.Get(0)
+}
+
+func (carry *Carry) Append(elem *ElementaryCarry) {
+	carry.arrCarry = append(carry.arrCarry, *elem)
+}
+
+func (carry *Carry) Merge(rghCarry *Carry) *Carry {
+	res := NewCarry([]ElementaryCarry{})
+	ind1, ind2 := 0, 0
+	for ind1 < carry.Size() && ind2 < rghCarry.Size() {
+		elem1, _ := carry.Get(ind1)
+		elem2, _ := carry.Get(ind2)
+		if elem1.Less(elem2) {
+			res.Append(elem1)
+			ind1++
+		} else {
+			res.Append(elem2)
+			ind2++
+		}
+	}
+
+	for ind1 < carry.Size() {
+		elem, _ := carry.Get(ind1)
+		res.Append(elem)
+		ind1++
+	}
+
+	for ind2 < rghCarry.Size() {
+		elem, _ := rghCarry.Get(ind2)
+		res.Append(elem)
+		ind2++
+	}
+
+	return res
+}
+
+func (carry *Carry) Union(rgh *Carry) *Carry {
+	if carry.Size() + rgh.Size() == 0 {
+		return NewCarry([]ElementaryCarry{})
+	}
+	merged := carry.Merge(rgh)
+	elemCarries := merged.GetElementaryCarries()
+	res := NewCarry([]ElementaryCarry{elemCarries[0]})
+	for ind := 1; ind < merged.Size(); ind++ {
+		if elemCarries[ind].NotEqual(&elemCarries[ind - 1]) {
+			res.Append(&elemCarries[ind])
+		}
+	}
+
+	return res
 }
 
 func NewCarries(args ...ElementaryCarry) []Carry {
 	result := make([]Carry, len(args))
 	for ind := 0; ind < len(args); ind++ {
-		result[ind] = NewCarry(ind, []ElementaryCarry{args[ind]})
+		result[ind] = *NewCarry([]ElementaryCarry{args[ind]})
 	}
 
 	return result
 }
 
-func NewCarriesN(number int) []Carry {
-	result := make([]Carry, number)
+func NewCarriesN(number int) Carry {
+	result := Carry{
+		arrCarry:make([]ElementaryCarry, number),
+	}
 	for ind := 0; ind < number; ind++ {
-		elemCarry := NewElementaryCarry(ind, Payload(NewSimpleInt(number+1)))
-		result[ind] = NewCarry(ind, []ElementaryCarry{elemCarry})
+		result.arrCarry[ind] = NewElementaryCarry(ind, Payload(NewSimpleInt(number+1)))
 	}
 
 	return result
 }
 
-func NewCarry(id int, val []ElementaryCarry) Carry {
-	return Carry{
-		id:    id,
-		value: val,
+func NewCarry(val []ElementaryCarry) *Carry {
+	return &Carry{
+		arrCarry: val,
 	}
 }
 
 func (carry *Carry) Equal(otherCarry Carry) bool {
-	return carry.id == otherCarry.id
-}
-
-func (carry *Carry) NotEqual(otherCarry Carry) bool {
-	return !carry.Equal(otherCarry)
-}
-
-type CarriesSet struct {
-	StepId   StepId
-	ArrCarry []Carry
-}
-
-//type CarriesSet []Carry
-
-func NewCarriesSet(args ...Carry) CarriesSet {
-	ptr := new(CarriesSet)
-	for _, val := range args {
-		ptr.ArrCarry = append(ptr.ArrCarry, val)
-	}
-
-	sort.Sort(ById(ptr.ArrCarry))
-	return *ptr
-}
-
-func (set *CarriesSet) SplitByType() (CarriesSet, CarriesSet) {
-	algorithmCarries := NewCarriesSet()
-	membershipCarries := NewCarriesSet()
-
-	for _, carry := range set.ArrCarry {
-		elemCarries := carry.GetElementaryCarries()
-		algorithmCarry := NewCarry(carry.GetId(), make([]ElementaryCarry, 0))
-		membershipCarry := NewCarry(carry.GetId(), make([]ElementaryCarry, 0))
-		for _, elemCarry := range elemCarries {
-			payload := elemCarry.GetPayload()
-			if payload.Type() == MEMBERSHIP_CHANGE {
-				membershipCarries.Append(carry)
-			} else {
-				algorithmCarry.Append(elemCarry) // TODO: придумать что-то получше
-			}
-		}
-
-		if algorithmCarry.Size() > 0 {
-			algorithmCarries.Append(algorithmCarry)
-		}
-		if membershipCarry.Size() > 0 {
-			membershipCarries.Append(membershipCarry)
-		}
-	}
-
-	return algorithmCarries, membershipCarries
-}
-
-func (set *CarriesSet) Equal(otherSet CarriesSet) bool {
-	if set.Size() != otherSet.Size() {
+	if len(carry.arrCarry) != len(otherCarry.arrCarry) {
 		return false
 	}
 
-	for ind := 0; ind < set.Size(); ind++ {
-		if set.ArrCarry[ind].NotEqual(otherSet.ArrCarry[ind]) {
+	length := len(carry.arrCarry)
+	for ind := 0; ind < length; ind++ {
+		if carry.arrCarry[ind].id != otherCarry.arrCarry[ind].id {
 			return false
 		}
 	}
@@ -184,57 +209,22 @@ func (set *CarriesSet) Equal(otherSet CarriesSet) bool {
 	return true
 }
 
-func (set CarriesSet) NotEqual(otherSet CarriesSet) bool {
-	return !set.Equal(otherSet)
+func (carry *Carry) NotEqual(otherCarry Carry) bool {
+	return !carry.Equal(otherCarry)
 }
 
-func (set *CarriesSet) AddSet(otherSet CarriesSet) {
-	for _, val := range otherSet.ArrCarry {
-		set.Append(val)
-	}
-}
+func (carry *Carry) SplitByType() (alg *Carry, membership *Carry) {
+	algorithmCarries := NewCarry([]ElementaryCarry{})
+	membershipCarries := NewCarry([]ElementaryCarry{})
 
-type ById []Carry
-
-func (seq ById) Len() int {
-	return len(seq)
-}
-
-func (seq ById) Less(i, j int) bool {
-	return seq[i].id < seq[j].id
-}
-
-func (seq ById) Swap(i, j int) {
-	seq[i], seq[j] = seq[j], seq[i]
-}
-
-func (set *CarriesSet) Consist(carry Carry) bool {
-	for ind := 0; ind < set.Size(); ind++ {
-		if set.ArrCarry[ind].Equal(carry) {
-			return true
+	for _, elemCarry := range carry.arrCarry {
+		payload := elemCarry.value
+		if payload.Type() == MEMBERSHIP_CHANGE {
+			membershipCarries.Append(&elemCarry)
+		} else {
+			algorithmCarries.Append(&elemCarry)
 		}
 	}
 
-	return false
-}
-
-func (set *CarriesSet) Append(carry Carry) {
-	if set.Consist(carry) {
-		return
-	}
-
-	set.ArrCarry = append(set.ArrCarry, carry)
-	sort.Sort(ById(set.ArrCarry))
-}
-
-func (set CarriesSet) Size() int {
-	return len(set.ArrCarry)
-}
-
-func (set CarriesSet) Get(ind int) *Carry {
-	return &set.ArrCarry[ind]
-}
-
-func (set *CarriesSet) Clear() {
-	set.ArrCarry = make([]Carry, 0)
+	return algorithmCarries, membershipCarries
 }
