@@ -27,9 +27,9 @@ type Message struct {
 	MessageType int
 	Stamp       Stamp
 	StepId      StepId
-	VotedSet    Set
+	VotedSet    Set // FIXME: remove this
 	Carry       Carry
-	NodesSet    Set
+	NodeSet     Set
 	IdFrom      NodeId
 }
 
@@ -38,7 +38,7 @@ func NewMessageVote(carry Carry, votedSet Set, nodesSet Set) Message {
         MessageType: Vote,
         Carry:       carry,
         VotedSet:    votedSet,
-        NodesSet:    nodesSet,
+        NodeSet:     nodesSet,
     }
 }
 
@@ -73,14 +73,14 @@ func (msg *Message) Equal(other Message) bool {
 	}
 
 	if msg.MessageType == Vote {
-		if msg.NodesSet.Equal(other.NodesSet) && msg.VotedSet.Equal(other.VotedSet) &&
+		if msg.NodeSet.Equal(other.NodeSet) && msg.VotedSet.Equal(other.VotedSet) &&
 		   msg.Stamp == other.Stamp && msg.StepId == other.StepId {
 			return true
 		}
 	}
 
 	if msg.MessageType == Commit {
-		if msg.NodesSet.Equal(other.NodesSet) && msg.Carry.Equal(other.Carry) &&
+		if msg.NodeSet.Equal(other.NodeSet) && msg.Carry.Equal(other.Carry) &&
 			msg.Stamp == other.Stamp && msg.StepId == other.StepId {
 			return true
 		}

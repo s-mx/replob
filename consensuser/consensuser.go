@@ -73,9 +73,11 @@ func (consensuser *CalmConsensuser) Propose(carry cont.Carry) {
 	consensuser.OnVote(consensuser.newVote(carry))
 }
 
+// FIXME: уточнить в названии функции смысл инварианта.
+//        слово invariant употреблено не удачно, т. к. инвариант - это что-то, что выполняется всегда.
 func (consensuser *CalmConsensuser) checkInvariant(msg cont.Message) bool {
 	return consensuser.carry.Equal(msg.Carry) &&
-		   consensuser.currentNodes.Equal(msg.NodesSet)
+		   consensuser.currentNodes.Equal(msg.NodeSet)
 }
 
 func (consensuser *CalmConsensuser) OnBroadcast(msg cont.Message) {
@@ -93,7 +95,7 @@ func (consensuser *CalmConsensuser) OnBroadcast(msg cont.Message) {
 
 func (consensuser *CalmConsensuser) mergeVotes(msg cont.Message) {
 	consensuser.carry = consensuser.carry.Union(&msg.Carry)
-	consensuser.currentNodes.Intersect(msg.NodesSet)
+	consensuser.currentNodes.Intersect(msg.NodeSet)
 }
 
 func (consensuser *CalmConsensuser) OnVote(msg cont.Message) {

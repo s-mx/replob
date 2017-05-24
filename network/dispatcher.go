@@ -23,7 +23,7 @@ type NetworkDispatcher struct {
 	nodesStamps				[]cont.Stamp
 
 	replob					Replob
-	batcher					Batcher
+	batcher					*Batcher
 
 	channelStop				chan interface{}
 
@@ -47,6 +47,8 @@ func NewNetworkDispatcher(id int, config *Configuration, reblob Replob) *Network
 		isRunning:&tmp,
 		replob:reblob,
 	}
+
+	ptr.batcher = NewBatcher(ptr)
 
 	for ind := 0; ind < config.numberNodes; ind++ {
 		if ind == id {

@@ -8,7 +8,9 @@ import (
 type Replob interface {
 	CommitSet(id cont.StepId, set cont.Carry) // TODO: Are we need this?
 	Propose(cont.Carry)
-	GetSnapshot(lastStepId cont.StepId, curStepId cont.StepId) (cont.Carry, bool)
+
+	// TODO: реализовать потом
+	//GetSnapshot(lastStepId cont.StepId, curStepId cont.StepId) (cont.Carry, bool)
 }
 
 type element struct {

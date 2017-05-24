@@ -359,21 +359,21 @@ func TestRandomDisconnect5(t *testing.T) {
 }
 
 func TestRandomDisconnect5_100(t *testing.T) {
-	prob := Probabilities{0.05,0}
+	prob := Probabilities{0.05,0.1}
 	for seed := int64(1); seed <= 42; seed++ {
 		RunRandomDisconnectTest(5, 100, 2, seed, prob, t)
 	}
 }
 
 func TestRandomDisconnect10_10(t *testing.T) {
-	prob := Probabilities{0.05,0}
+	prob := Probabilities{0.05,0.1}
 	for seed := int64(1); seed <= 42; seed++ {
 		RunRandomDisconnectTest(10, 10, 4, seed, prob, t)
 	}
 }
 
 func TestRandomDisconnect10_100(t *testing.T) {
-	prob := Probabilities{0.05,0}
+	prob := Probabilities{0.05,0.1}
 	for seed := int64(1); seed <= 42; seed++ {
 		RunRandomDisconnectTest(10, 100, 4, seed, prob, t)
 	}
