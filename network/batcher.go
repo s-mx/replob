@@ -18,6 +18,7 @@ func NewBatcher(dispatcher *NetworkDispatcher) *Batcher {
 	return &Batcher{
 		batchSize:10, // FIXME: use flags here
 		carry:cont.NewCarry([]cont.ElementaryCarry{}),
+		channel:make(chan cont.Carry),
 		dispatcher:dispatcher,
 	}
 }
@@ -30,8 +31,11 @@ func (batcher *Batcher) Propose(carry cont.Carry) {
 		batcher.carry.Append(&elemCarry) // FIXME: добавлять до batchSize
 	}
 
-	if batcher.dispatcher.canPropose() { // TODO: потестить
-		batcher.dispatcher.Propose(*batcher.carry)
+	// FIXME: canPropose и Propose нужно делать атомарно
+	//	можно получить True в canPropose, затем по сети придет сообщение и consensuser перейдет в голосование
+	//  и мы ошибочно вызовем Propose
+	if batcher.dispatcher.canPropose() { // TODO: потестить.
+		batcher.channel<-*batcher.carry
 		batcher.carry = cont.NewCarry([]cont.ElementaryCarry{})
 	}
 }
@@ -50,7 +54,7 @@ func (batcher *Batcher) popBatch() (*cont.Carry, bool) {
 	batcher.mutex.Lock()
 	defer batcher.mutex.Unlock()
 
-	if batcher.IsEmpty() {
+	if batcher.carry.Size() == 0 {
 		return cont.NewCarry([]cont.ElementaryCarry{}), false
 	}
 

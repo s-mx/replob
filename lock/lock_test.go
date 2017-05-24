@@ -4,6 +4,7 @@ import (
 	"testing"
 	"github.com/s-mx/replob/network"
 	"time"
+	"encoding/gob"
 )
 
 type Context struct {
@@ -31,16 +32,18 @@ func CreateNodes(numberNodes int, t *testing.T) *Context {
 }
 
 func TestOneLock(t *testing.T) {
-	context := CreateNodes(2, t)
+	context := CreateNodes(1, t)
 	context.dispatchers[0].Start()
-	context.dispatchers[1].Start()
+
+	gob.Register(MessageCarry{})
 
 	client1 := context.replobs[0].NewLock("client1")
 
 	client1.AcquireLock("lock 1")
+	time.Sleep(time.Second)
+	client1.Unlock("lock 1")
 
 	time.Sleep(5 * time.Second)
 
 	context.dispatchers[0].Stop()
-	context.dispatchers[1].Stop()
 }

@@ -43,8 +43,8 @@ func (record *lockRecord) updateLease(timestamp time.Time) {
 
 func newLockRecord(message *Message) *lockRecord {
 	return &lockRecord{
-		clientId:  message.clientId,
-		timestamp: time.Now().Add(message.duration),
+		clientId:  message.ClientId,
+		timestamp: time.Now().Add(message.Duration),
 	}
 }
 
@@ -63,10 +63,10 @@ func newLockReplob() *lockReplob {
 }
 
 func (replob *lockReplob) ExecuteAcquireLock(message *Message) (resultCode int) {
-	record, ok := replob.lockTable[message.lockId]
-	endTimestamp := time.Now().Add(message.duration)
+	record, ok := replob.lockTable[message.LockId]
+	endTimestamp := time.Now().Add(message.Duration)
 	if ok {
-		if record.clientId == message.clientId && record.isEarlier(endTimestamp) {
+		if record.clientId == message.ClientId && record.isEarlier(endTimestamp) {
 			record.updateLease(endTimestamp)
 			return OK
 		}
@@ -74,19 +74,19 @@ func (replob *lockReplob) ExecuteAcquireLock(message *Message) (resultCode int) 
 		return FAIL
 	}
 
-	replob.lockTable[message.lockId] = *newLockRecord(message)
+	replob.lockTable[message.LockId] = *newLockRecord(message)
 	return OK
 }
 
 func (replob *lockReplob) ExecuteUnlock(message *Message) (resultCode int) {
-	record, ok := replob.lockTable[message.lockId]
+	record, ok := replob.lockTable[message.LockId]
 	if ok {
 		if expired := record.isExpired(); expired {
-			delete(replob.lockTable, message.lockId)
+			delete(replob.lockTable, message.LockId)
 			return FAIL
 		}
 
-		delete(replob.lockTable, message.lockId)
+		delete(replob.lockTable, message.LockId)
 		return OK
 	}
 
@@ -95,24 +95,23 @@ func (replob *lockReplob) ExecuteUnlock(message *Message) (resultCode int) {
 
 func (replob *lockReplob) ExecuteCarry(carry cont.ElementaryCarry) {
 	message := Unmarshall(carry)
-	if message.typeMessage == "lock" {
+	if message.TypeMessage == "lock" {
 		res := replob.ExecuteAcquireLock(message)
-		actionChan, ok := replob.actionChannels[message.clientId]
+		actionChan, ok := replob.actionChannels[message.ClientId]
 		if ok {
 			var act action
 			if res == OK {
-				act = action{TypeAction:"lock", Message:message.lockId}
+				act = action{TypeAction:"lock", Message:message.LockId}
 			} else {
 				act = action{TypeAction:"lock", Message:"-1"} // костыль здесь :(
 			}
 
 			actionChan <- act
 		}
-	} else if message.typeMessage == "unlock" {
+	} else if message.TypeMessage == "unlock" {
 		replob.ExecuteUnlock(message)
-
 	} else {
-		log.Printf("INFO LOCK: wrong carry [%d]", carry.GetId())
+		log.Printf("INFO LOCK: wrong carry [%d], TypeMessage: %s", carry.GetId(), message.TypeMessage)
 	}
 }
 
@@ -134,7 +133,6 @@ func (replob *lockReplob) ProposeWithClient(value cont.Carry, clientId string) c
 	}
 
 	replob.Propose(value)
-	replob.dispatcher.Propose(value)
 	return actionChan
 }
 
@@ -157,17 +155,17 @@ func (replob *lockReplob) NewLock(clientId string) *Lock {
 
 func (lock *Lock) createCarry(message *Message) *cont.Carry {
 	bytes := message.Marshall()
-	messageCarry := MessageCarry{message.typeMessage, bytes.Bytes()}
+	messageCarry := MessageCarry{message.TypeMessage, bytes.Bytes()}
 	elemCarry := cont.NewElementaryCarry(0, cont.Payload(messageCarry))
 	return cont.NewCarry([]cont.ElementaryCarry{elemCarry})
 }
 
 func (lock *Lock) AcquireLock(lockId string) (int, error) {
 	message := &Message{
-		typeMessage:"lock",
-		lockId:lockId,
-		clientId:lock.clientId,
-		duration:DURATION_TIME,
+		TypeMessage: "lock",
+		LockId:      lockId,
+		ClientId:    lock.clientId,
+		Duration:    DURATION_TIME,
 	}
 
 	actionChan := lock.impl.ProposeWithClient(*lock.createCarry(message), lock.clientId)
@@ -190,10 +188,10 @@ func (lock *Lock) AcquireLock(lockId string) (int, error) {
 
 func (lock *Lock) Unlock(lockId string) (int, error) {
 	message := &Message{
-		typeMessage:"unlock",
-		lockId:lockId,
-		clientId:lock.clientId,
-		duration:DURATION_TIME,
+		TypeMessage: "unlock",
+		LockId:      lockId,
+		ClientId:    lock.clientId,
+		Duration:    DURATION_TIME,
 	}
 
 	actionChan := lock.impl.ProposeWithClient(*lock.createCarry(message), lock.clientId)

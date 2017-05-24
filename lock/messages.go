@@ -8,23 +8,23 @@ import (
 )
 
 type Message struct {
-	typeMessage string
-	lockId      string
-	clientId    string
-	duration    time.Duration
+	TypeMessage string
+	LockId      string
+	ClientId    string
+	Duration    time.Duration
 }
 
 type MessageCarry struct {
-	typeMessage string
-	arrBytes	[]byte
+	TypeMessage string
+	ArrBytes    []byte
 }
 
 func (message MessageCarry) Type() string {
-	return message.typeMessage
+	return message.TypeMessage
 }
 
 func (message MessageCarry) Bytes() []byte {
-	return message.arrBytes
+	return message.ArrBytes
 }
 
 func (message *Message) Marshall() bytes.Buffer {
@@ -35,6 +35,7 @@ func (message *Message) Marshall() bytes.Buffer {
 
 func Unmarshall(carry containers.ElementaryCarry) *Message {
 	var message Message
-	gob.NewDecoder(bytes.NewBuffer(carry.GetPayload().Bytes())).Decode(message)
+	buffer := carry.GetPayload().Bytes()
+	gob.NewDecoder(bytes.NewBuffer(buffer)).Decode(&message)
 	return &message
 }

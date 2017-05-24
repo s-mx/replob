@@ -51,31 +51,31 @@ func (obj *MembershipChangeCarry) Bytes() []byte {
 }
 
 type ElementaryCarry struct {
-	id		int		//TODO: move to int64
-	value	Payload
+	Id    int //TODO: move to int64
+	Value Payload
 }
 
 func NewElementaryCarry(id int, val Payload) ElementaryCarry {
 	return ElementaryCarry{
-		id:id,
-		value:val,
+		Id:    id,
+		Value: val,
 	}
 }
 
 func (obj *ElementaryCarry) GetId() int {
-	return obj.id
+	return obj.Id
 }
 
 func (obj *ElementaryCarry) Less(rgh *ElementaryCarry) bool {
-	return obj.id < rgh.id // TODO: уточнить это
+	return obj.Id < rgh.Id // TODO: уточнить это
 }
 
 func (obj *ElementaryCarry) GetPayload() Payload {
-	return obj.value
+	return obj.Value
 }
 
 func (obj *ElementaryCarry) Equal(rgh *ElementaryCarry) bool {
-	return obj.id == rgh.id
+	return obj.Id == rgh.Id
 }
 
 func (obj *ElementaryCarry) NotEqual(rgh *ElementaryCarry) bool {
@@ -83,19 +83,19 @@ func (obj *ElementaryCarry) NotEqual(rgh *ElementaryCarry) bool {
 }
 
 type Carry struct {
-	arrCarry []ElementaryCarry
+	ArrCarry []ElementaryCarry
 }
 
 func (carry *Carry) GetElementaryCarries() []ElementaryCarry {
-	return carry.arrCarry
+	return carry.ArrCarry
 }
 
 func (carry *Carry) Size() int {
-	return len(carry.arrCarry)
+	return len(carry.ArrCarry)
 }
 
 func (carry *Carry) Clear() {
-	carry.arrCarry = make([]ElementaryCarry, 0)
+	carry.ArrCarry = make([]ElementaryCarry, 0)
 }
 
 func (carry *Carry) GetCarry(ind int) (*Carry, error) {
@@ -103,7 +103,7 @@ func (carry *Carry) GetCarry(ind int) (*Carry, error) {
 		return nil, errors.New("out of range")
 	}
 
-	return NewCarry([]ElementaryCarry{carry.arrCarry[ind]}), nil
+	return NewCarry([]ElementaryCarry{carry.ArrCarry[ind]}), nil
 }
 
 func (carry *Carry) Get(ind int) (*ElementaryCarry, error) {
@@ -111,7 +111,7 @@ func (carry *Carry) Get(ind int) (*ElementaryCarry, error) {
 		return nil, errors.New("out of range")
 	}
 
-	return &carry.arrCarry[ind], nil
+	return &carry.ArrCarry[ind], nil
 }
 
 func (carry *Carry) GetFirst() (*ElementaryCarry, error) {
@@ -119,7 +119,7 @@ func (carry *Carry) GetFirst() (*ElementaryCarry, error) {
 }
 
 func (carry *Carry) Append(elem *ElementaryCarry) {
-	carry.arrCarry = append(carry.arrCarry, *elem)
+	carry.ArrCarry = append(carry.ArrCarry, *elem)
 }
 
 func (carry *Carry) Merge(rghCarry *Carry) *Carry {
@@ -179,10 +179,10 @@ func NewCarries(args ...ElementaryCarry) []Carry {
 
 func NewCarriesN(number int) Carry {
 	result := Carry{
-		arrCarry:make([]ElementaryCarry, number),
+		ArrCarry: make([]ElementaryCarry, number),
 	}
 	for ind := 0; ind < number; ind++ {
-		result.arrCarry[ind] = NewElementaryCarry(ind, Payload(NewSimpleInt(number+1)))
+		result.ArrCarry[ind] = NewElementaryCarry(ind, Payload(NewSimpleInt(number+1)))
 	}
 
 	return result
@@ -190,18 +190,18 @@ func NewCarriesN(number int) Carry {
 
 func NewCarry(val []ElementaryCarry) *Carry {
 	return &Carry{
-		arrCarry: val,
+		ArrCarry: val,
 	}
 }
 
 func (carry *Carry) Equal(otherCarry Carry) bool {
-	if len(carry.arrCarry) != len(otherCarry.arrCarry) {
+	if len(carry.ArrCarry) != len(otherCarry.ArrCarry) {
 		return false
 	}
 
-	length := len(carry.arrCarry)
+	length := len(carry.ArrCarry)
 	for ind := 0; ind < length; ind++ {
-		if carry.arrCarry[ind].id != otherCarry.arrCarry[ind].id {
+		if carry.ArrCarry[ind].Id != otherCarry.ArrCarry[ind].Id {
 			return false
 		}
 	}
@@ -217,8 +217,8 @@ func (carry *Carry) SplitByType() (alg *Carry, membership *Carry) {
 	algorithmCarries := NewCarry([]ElementaryCarry{})
 	membershipCarries := NewCarry([]ElementaryCarry{})
 
-	for _, elemCarry := range carry.arrCarry {
-		payload := elemCarry.value
+	for _, elemCarry := range carry.ArrCarry {
+		payload := elemCarry.Value
 		if payload.Type() == MEMBERSHIP_CHANGE {
 			membershipCarries.Append(&elemCarry)
 		} else {
