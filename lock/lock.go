@@ -53,6 +53,12 @@ type lockReplob struct {
 	actionChannels map[string]chan action	// GC не может трогать его. Нужно вызывать lock.close() !!!
 
 	lockTable map[string]lockRecord
+	/*
+	TODO: add expiration
+	1. Add heap to preserve timestamps
+	2. On expiration propose through replob
+	3. On execution check for lock_id, client_id and timestamp
+	 */
 }
 
 func newLockReplob() *lockReplob {
@@ -185,7 +191,8 @@ func (lock *Lock) AcquireLock(lockId string) (int, error) {
 		Duration:    DURATION_TIME,
 	}
 
-	actionChan := lock.impl.ProposeWithClient(*lock.createCarry(message), lock.clientId)
+	actionChan := lock.impl.ProposeWithClient(*lock.createCarry(message), message)
+	defer lock.impl.cleanupChannel(message)
 	timeOutChan := time.After(DURATION_TIME) // FIXME: Configure here
 	for {
 		select {

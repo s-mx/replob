@@ -67,7 +67,7 @@ func (service *ClientService) loop() int {
 		checkError(err)
 
 		service.connection.SetDeadline(time.Now().Add(time.Second))
-		service.connection.Write(buffer.Bytes())
+		service.connection.Write(buffer.Bytes()) // FIXME: error handling
 		if Err, ok := err.(*net.OpError); ok {
 			if Err.Timeout() {
 				log.Printf("Client [%d]: Timeout error", service.id)
