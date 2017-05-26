@@ -83,14 +83,18 @@ func (replob *lockReplob) ExecuteUnlock(message *Message) (resultCode int) {
 	if ok {
 		if expired := record.isExpired(); expired {
 			delete(replob.lockTable, message.LockId)
-			return FAIL
+			return NOT_LOCKED
 		}
 
-		delete(replob.lockTable, message.LockId)
-		return OK
+		if record.clientId == message.ClientId {
+			delete(replob.lockTable, message.LockId)
+			return OK
+		} else {
+			return LOCKED_OTHER
+		}
 	}
 
-	return FAIL
+	return NOT_LOCKED
 }
 
 func (replob *lockReplob) ExecuteCarry(carry cont.ElementaryCarry) {
@@ -109,7 +113,20 @@ func (replob *lockReplob) ExecuteCarry(carry cont.ElementaryCarry) {
 			actionChan <- act
 		}
 	} else if message.TypeMessage == "unlock" {
-		replob.ExecuteUnlock(message)
+		res := replob.ExecuteUnlock(message)
+		actionChan, ok := replob.actionChannels[message.ClientId]
+		if ok {
+			var act action
+			if res == OK {
+				act = action{TypeAction:"unlock"}
+			} else if res == LOCKED_OTHER {
+				act = action{TypeAction:"error", Message:"LOCKED_OTHER"}
+			} else if res == NOT_LOCKED {
+				act = action{TypeAction:"error", Message:"NOT_LOCKED"}
+			}
+
+			actionChan <- act
+		}
 	} else {
 		log.Printf("INFO LOCK: wrong carry [%d], TypeMessage: %s", carry.GetId(), message.TypeMessage)
 	}
