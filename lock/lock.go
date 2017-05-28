@@ -8,7 +8,7 @@ import (
 	"errors"
 )
 
-type action struct {
+type action struct { // FIXME: можно избавиться от Action, и просто в канале отсылать (int, error)
 	TypeAction string
 	Message    string
 }
@@ -26,7 +26,7 @@ const DURATION_TIME = time.Second
 
 type lockRecord struct {
 	clientId  string
-	timestamp time.Time
+	timestamp time.Time // FIXME: expirationTimestamp
 }
 
 func (record *lockRecord) isEarlier(timestamp time.Time) bool {
@@ -48,8 +48,11 @@ func newLockRecord(message *Message) *lockRecord {
 	}
 }
 
+// TODO: add mutex
+// TODO: у lockReplob должна быть горутина для expires
 type lockReplob struct {
 	dispatcher    *network.NetworkDispatcher
+	// FIXME: сделать неблокирующим
 	actionChannels map[string]chan action	// GC не может трогать его. Нужно вызывать lock.close() !!!
 
 	lockTable map[string]lockRecord
@@ -82,7 +85,7 @@ func (replob *lockReplob) ExecuteUnlock(message *Message) (resultCode int) {
 	record, ok := replob.lockTable[message.LockId]
 	if ok {
 		if expired := record.isExpired(); expired {
-			delete(replob.lockTable, message.LockId)
+			delete(replob.lockTable, message.LockId) // FIXME: пропустить это через консенсус
 			return NOT_LOCKED
 		}
 
@@ -110,7 +113,7 @@ func (replob *lockReplob) ExecuteCarry(carry cont.ElementaryCarry) {
 				act = action{TypeAction:"lock", Message:"-1"} // костыль здесь :(
 			}
 
-			actionChan <- act
+			actionChan <- act // TODO: Эту логику можно перенести в ExecuteAcquireLock and etc.
 		}
 	} else if message.TypeMessage == "unlock" {
 		res := replob.ExecuteUnlock(message)
@@ -158,7 +161,13 @@ func (replob *lockReplob) GetSnapshot() (cont.Carry, bool) {
 	return cont.Carry{}, true
 }
 
-type Lock struct {
+// TODO:
+// usage by operation
+// interface:
+// Lock(clientId, lockId)
+// etc.
+//
+type Lock struct { // TODO: можно добавить lockId здесь
 	clientId	string
 	impl		*lockReplob
 }
@@ -177,6 +186,7 @@ func (lock *Lock) createCarry(message *Message) *cont.Carry {
 	return cont.NewCarry([]cont.ElementaryCarry{elemCarry})
 }
 
+// TODO: AcquireLock(lockId, duration)
 func (lock *Lock) AcquireLock(lockId string) (int, error) {
 	message := &Message{
 		TypeMessage: "lock",
@@ -185,9 +195,14 @@ func (lock *Lock) AcquireLock(lockId string) (int, error) {
 		Duration:    DURATION_TIME,
 	}
 
+	// FIXME: по окончанию работы функции канал должен быть удален
+	// TODO: вместо clientId должен быть ключ из (clientId, LockId)
 	actionChan := lock.impl.ProposeWithClient(*lock.createCarry(message), lock.clientId)
+	// defer lock.impl.cleanupChannel()
+	// TODO: Добавить requestId, который возвращается из ProposeWithClient
+	// И придется requestId передавать в message
 	timeOutChan := time.After(DURATION_TIME) // FIXME: Configure here
-	for {
+	for {			// FIXME: этот блок избыточен
 		select {
 		case action := <-actionChan:
 			if action.TypeAction == "lock" && action.Message == lockId {
@@ -203,7 +218,7 @@ func (lock *Lock) AcquireLock(lockId string) (int, error) {
 	}
 }
 
-func (lock *Lock) Unlock(lockId string) (int, error) {
+func (lock *Lock) Unlock(lockId string) (int, error) { // FIXME: избавиться от int
 	message := &Message{
 		TypeMessage: "unlock",
 		LockId:      lockId,
@@ -235,5 +250,6 @@ func (lock *Lock) Unlock(lockId string) (int, error) {
 }
 
 func (lock *Lock) Close() {
+	// FIXME: mutex here
 	delete(lock.impl.actionChannels, lock.clientId)
 }

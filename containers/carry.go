@@ -51,18 +51,22 @@ func (obj *MembershipChangeCarry) Bytes() []byte {
 }
 
 type ElementaryCarry struct {
-	Id    int //TODO: move to int64
+	Id    int64 //TODO: move to int64
 	Value Payload
 }
 
-func NewElementaryCarry(id int, val Payload) ElementaryCarry {
+func CreateElementaryId(nodeId int, carryId int) int64 {
+	return int64(nodeId) << 32 + int64(carryId)
+}
+
+func NewElementaryCarry(id int64, val Payload) ElementaryCarry {
 	return ElementaryCarry{
 		Id:    id,
 		Value: val,
 	}
 }
 
-func (obj *ElementaryCarry) GetId() int {
+func (obj *ElementaryCarry) GetId() int64 {
 	return obj.Id
 }
 
@@ -177,12 +181,13 @@ func NewCarries(args ...ElementaryCarry) []Carry {
 	return result
 }
 
-func NewCarriesN(number int) Carry {
+// TODO: не удобно использовать при разных nodeId
+func NewIntCarriesN(number int, nodeId int) Carry {
 	result := Carry{
 		ArrCarry: make([]ElementaryCarry, number),
 	}
 	for ind := 0; ind < number; ind++ {
-		result.ArrCarry[ind] = NewElementaryCarry(ind, Payload(NewSimpleInt(number+1)))
+		result.ArrCarry[ind] = NewElementaryCarry(CreateElementaryId(nodeId, ind), Payload(NewSimpleInt(number+1)))
 	}
 
 	return result

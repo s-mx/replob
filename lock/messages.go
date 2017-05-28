@@ -11,7 +11,7 @@ type Message struct {
 	TypeMessage string
 	LockId      string
 	ClientId    string
-	Duration    time.Duration
+	Duration    time.Duration // FIXME: endTimestamp here
 }
 
 type MessageCarry struct {

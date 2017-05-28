@@ -3,110 +3,95 @@ package consensuser
 import (
 	cont "github.com/s-mx/replob/containers"
 	"testing"
-	"math/rand"
 	"log"
+	"math/rand"
 )
 
+type Context struct {
+	numberNodes int
+	conf		Configuration
+	dispatchers	[]*TestLocalDispatcher
+	helper		*testCommitHelper
+}
+
+func CreateNodes(numberNodes int, carry cont.Carry, t *testing.T) *Context {
+	context := &Context{
+		numberNodes:numberNodes,
+		conf:NewMasterlessConfiguration(numberNodes),
+	}
+
+	context.dispatchers = NewLocalDispatchers(numberNodes, context.conf, t)
+	context.helper = newTestCommitHelper(numberNodes, carry.GetElementaryCarries(), context.dispatchers)
+
+	for ind := 0; ind < numberNodes; ind++ {
+		committer := NewTestLocalCommitter(cont.NodeId(ind), context.helper)
+		context.dispatchers[ind].committer = committer
+		currentDispatcher := context.dispatchers[ind]
+		context.dispatchers[ind].cons = NewCalmConsensuser(currentDispatcher, context.conf, ind)
+	}
+
+	return context
+}
+
 func TestOneNode(t *testing.T) {
-	conf := NewMasterlessConfiguration(1)
-	carries := cont.NewCarriesN(1)
-	LocalDispatchers := NewLocalDispatchers(1, conf, t)
+	carries := cont.NewIntCarriesN(1, 0)
+	context := CreateNodes(1, carries, t)
 
-	helper := newTestCommitHelper(1, carries.GetElementaryCarries(), LocalDispatchers)
-	cm := NewTestLocalCommitter(0, helper)
-	LocalDispatchers[0].committer = cm
-	dsp := LocalDispatchers[0]
-	cons := NewCalmConsensuser(dsp, conf, 0)
-	dsp.cons = cons
-
-	dsp.Propose(carries)
-	if helper.CheckSafety() == false {
+	context.dispatchers[0].Propose(carries)
+	if context.helper.CheckSafety() == false {
 		t.Error("Carry isn't committed")
 	}
 }
 
 func TestTwoNodes(t *testing.T) {
-	conf := NewMasterlessConfiguration(2)
-	carries := cont.NewCarriesN(2)
-	LocalDispatchers := NewLocalDispatchers(2, conf, t)
-
-	helper := newTestCommitHelper(2, carries.GetElementaryCarries(), LocalDispatchers)
-	cm1 := NewTestLocalCommitter(0, helper)
-	cm2 := NewTestLocalCommitter(1, helper)
-	LocalDispatchers[0].committer = cm1
-	LocalDispatchers[1].committer = cm2
-	dsp1 := LocalDispatchers[0]
-	dsp2 := LocalDispatchers[1]
-	cons1 := NewCalmConsensuser(dsp1, conf, 0)
-	LocalDispatchers[0].cons = cons1
-	cons2 := NewCalmConsensuser(dsp2, conf, 1)
-	LocalDispatchers[1].cons = cons2
+	carries := cont.NewIntCarriesN(2, 0)
+	context := CreateNodes(2, carries, t)
 
 	carry, _ := carries.GetCarry(0)
-	cons1.Propose(*carry)
-	LocalDispatchers[0].proceedFirstMessage(1)
-	LocalDispatchers[1].proceedFirstMessage(0)
-	LocalDispatchers[0].ClearQueues()
-	LocalDispatchers[1].ClearQueues()
+	context.dispatchers[0].Propose(*carry)
+	context.dispatchers[0].proceedFirstMessage(1)
+	context.dispatchers[1].proceedFirstMessage(0)
+	context.dispatchers[0].ClearQueues()
+	context.dispatchers[1].ClearQueues()
 
 	carry, _ = carries.GetCarry(1)
-	cons2.Propose(*carry)
-	LocalDispatchers[1].proceedFirstMessage(0)
-	LocalDispatchers[0].proceedFirstMessage(1)
+	context.dispatchers[1].Propose(*carry)
+	context.dispatchers[1].proceedFirstMessage(0)
+	context.dispatchers[0].proceedFirstMessage(1)
 
-	if helper.CheckSafety() == false {
+	if context.helper.CheckSafety() == false {
 		t.Error("Safety is broken")
 	}
 }
 
-
 func TestThreeNodes(t *testing.T) {
-	conf := NewMasterlessConfiguration(3)
-	carries := cont.NewCarriesN(2)
-	LocalDispatchers := NewLocalDispatchers(3, conf, t)
-
-	helper := newTestCommitHelper(3, carries.GetElementaryCarries(), LocalDispatchers)
-	cm1 := NewTestLocalCommitter(0, helper)
-	cm2 := NewTestLocalCommitter(1, helper)
-	cm3 := NewTestLocalCommitter(2, helper)
-
-	LocalDispatchers[0].committer = cm1
-	LocalDispatchers[1].committer = cm2
-	LocalDispatchers[2].committer = cm3
-	dsp1 := LocalDispatchers[0]
-	dsp2 := LocalDispatchers[1]
-	dsp3 := LocalDispatchers[2]
-	cons1 := NewCalmConsensuser(dsp1, conf, 0)
-	cons2 := NewCalmConsensuser(dsp2, conf, 1)
-	cons3 := NewCalmConsensuser(dsp3, conf, 2)
-	LocalDispatchers[0].cons = cons1
-	LocalDispatchers[1].cons = cons2
-	LocalDispatchers[2].cons = cons3
+	carries := cont.NewIntCarriesN(2, 0)
+	context := CreateNodes(3, carries, t)
 
 	carry, _ := carries.GetCarry(0)
-	cons1.Propose(*carry)
-	LocalDispatchers[0].proceedFirstMessage(1)
-	LocalDispatchers[0].proceedFirstMessage(2)
-	LocalDispatchers[1].proceedFirstMessage(0)
-	LocalDispatchers[1].proceedFirstMessage(2)
-	LocalDispatchers[2].proceedFirstMessage(1)
-	LocalDispatchers[2].proceedFirstMessage(0)
-	LocalDispatchers[2].proceedFirstMessage(0)
+	context.dispatchers[0].Propose(*carry)
+	context.dispatchers[0].proceedFirstMessage(1)
+	context.dispatchers[0].proceedFirstMessage(2)
+	context.dispatchers[1].proceedFirstMessage(0)
+	context.dispatchers[1].proceedFirstMessage(2)
+	context.dispatchers[2].proceedFirstMessage(1)
+	context.dispatchers[2].proceedFirstMessage(0)
+	context.dispatchers[2].proceedFirstMessage(0)
 
-	LocalDispatchers[0].ClearQueues()
-	LocalDispatchers[1].ClearQueues()
-	LocalDispatchers[2].ClearQueues()
+	context.dispatchers[0].ClearQueues()
+	context.dispatchers[1].ClearQueues()
+	context.dispatchers[2].ClearQueues()
 
 	carry, _ = carries.GetCarry(1)
-	cons2.Propose(*carry)
-	LocalDispatchers[1].proceedFirstMessage(0)
-	LocalDispatchers[1].proceedFirstMessage(2)
-	LocalDispatchers[0].proceedFirstMessage(1)
-	LocalDispatchers[0].proceedFirstMessage(2)
-	LocalDispatchers[2].proceedFirstMessage(1)
-	LocalDispatchers[2].proceedFirstMessage(0)
+	context.dispatchers[1].Propose(*carry)
+	context.dispatchers[1].proceedFirstMessage(0)
+	context.dispatchers[1].proceedFirstMessage(2)
+	context.dispatchers[0].proceedFirstMessage(1)
+	context.dispatchers[0].proceedFirstMessage(2)
+	context.dispatchers[2].proceedFirstMessage(1)
+	context.dispatchers[2].proceedFirstMessage(0)
 
-	if helper.CheckSafety() == false {
+	if context.helper.CheckSafety() == false {
 		t.Error("Carry isn't committed")
 	}
 }
@@ -117,37 +102,26 @@ func RunRandomTest(numberNodes int, numberCarries int, seed int64, t *testing.T)
 
 	log.Printf("===START TEST===")
 
-	conf := NewMasterlessConfiguration(uint32(numberNodes))
-	carries := cont.NewCarriesN(numberCarries)
-	LocalDispatchers := NewLocalDispatchers(numberNodes, conf, t)
-
-	helper := newTestCommitHelper(numberNodes, carries.GetElementaryCarries(), LocalDispatchers)
-	consensusers := []*CalmConsensuser{}
-	for ind := 0; ind < numberNodes; ind++ {
-		cm := NewTestLocalCommitter(cont.NodeId(ind), helper)
-		cons := NewCalmConsensuser(LocalDispatchers[ind], conf, ind)
-		LocalDispatchers[ind].cons = cons
-		LocalDispatchers[ind].committer = cm
-		consensusers = append(consensusers, cons)
-	}
+	carries := cont.NewIntCarriesN(numberCarries, 0)
+	context := CreateNodes(numberNodes, carries, t)
 
 	carry, _ := carries.GetCarry(0)
-	consensusers[0].Propose(*carry)
+	context.dispatchers[0].Propose(*carry)
 
 	numberProposedCarries := 1
 	for numberProposedCarries != numberCarries {
 		for true {
 			flag := false
 			for ind := 0; ind < numberNodes; ind++ {
-				if LocalDispatchers[ind].proceedRandomMessage(generator, 0) == true {
+				if context.dispatchers[ind].proceedRandomMessage(generator, 0) == true {
 					flag = true
 				}
 			}
 
-			ind := helper.findIndLastCommit(numberProposedCarries)
+			ind := context.helper.findIndLastCommit(numberProposedCarries)
 			if ind != -1 && numberProposedCarries < numberCarries {
 				carry, _ = carries.GetCarry(numberProposedCarries)
-				consensusers[ind].Propose(*carry)
+				context.dispatchers[ind].Propose(*carry)
 				numberProposedCarries += 1
 				continue
 			}
@@ -161,7 +135,7 @@ func RunRandomTest(numberNodes int, numberCarries int, seed int64, t *testing.T)
 	for true {
 		flag := false
 		for ind := 0; ind < numberNodes; ind++ {
-			if LocalDispatchers[ind].proceedRandomMessage(generator, 0) == true {
+			if context.dispatchers[ind].proceedRandomMessage(generator, 0) == true {
 				flag = true
 			}
 		}
@@ -171,7 +145,7 @@ func RunRandomTest(numberNodes int, numberCarries int, seed int64, t *testing.T)
 		}
 	}
 
-	if helper.CheckSafety() == false {
+	if context.helper.CheckSafety() == false {
 		t.Error("Carry isn't committed")
 	}
 }
@@ -207,42 +181,24 @@ func TestRandomMessages10_100(t *testing.T) {
 }
 
 func TestDisconnectThreeNodes(t *testing.T) {
-	conf := NewMasterlessConfiguration(3)
-	carries := cont.NewCarriesN(1)
-	LocalDispatchers := NewLocalDispatchers(3, conf, t)
-	dsp1 := LocalDispatchers[0]
-	dsp2 := LocalDispatchers[1]
-	dsp3 := LocalDispatchers[2]
+	carries := cont.NewIntCarriesN(1, 0)
+	context := CreateNodes(3, carries, t)
 
-	helper := newTestCommitHelper(3, carries.GetElementaryCarries(), LocalDispatchers)
-	cm1 := NewTestLocalCommitter(0, helper)
-	cm2 := NewTestLocalCommitter(1, helper)
-	cm3 := NewTestLocalCommitter(2, helper)
-
-	cons1 := NewCalmConsensuser(dsp1, conf, 0)
-	cons2 := NewCalmConsensuser(dsp2, conf, 1)
-	cons3 := NewCalmConsensuser(dsp3, conf, 2)
-	LocalDispatchers[0].cons = cons1
-	LocalDispatchers[0].committer = cm1
-	LocalDispatchers[1].cons = cons2
-	LocalDispatchers[1].committer = cm2
-	LocalDispatchers[2].cons = cons3
-	LocalDispatchers[2].committer = cm3
 
 	carry, _ := carries.GetCarry(0)
-	cons1.Propose(*carry)
-	LocalDispatchers[0].proceedFirstMessage(1)
-	LocalDispatchers[0].proceedFirstMessage(2)
-	LocalDispatchers[0].Stop()
-	cons2.OnDisconnect(0)
-	cons3.OnDisconnect(0)
+	context.dispatchers[0].Propose(*carry)
+	context.dispatchers[0].proceedFirstMessage(1)
+	context.dispatchers[0].proceedFirstMessage(2)
+	context.dispatchers[0].Stop()
+	context.dispatchers[1].cons.OnDisconnect(0)
+	context.dispatchers[2].cons.OnDisconnect(0)
 
-	LocalDispatchers[1].proceedFirstMessage(2)
-	LocalDispatchers[2].proceedFirstMessage(1)
-	LocalDispatchers[1].proceedFirstMessage(2)
-	LocalDispatchers[2].proceedFirstMessage(1)
+	context.dispatchers[1].proceedFirstMessage(2)
+	context.dispatchers[2].proceedFirstMessage(1)
+	context.dispatchers[1].proceedFirstMessage(2)
+	context.dispatchers[2].proceedFirstMessage(1)
 
-	if helper.CheckSafety() == false {
+	if context.helper.CheckSafety() == false {
 		t.Error("Carry isn't committed")
 	}
 }
@@ -252,14 +208,13 @@ type Probabilities struct {
 	probSwap		float32
 }
 
-func DisconnectNode(subsetDisconnectedNodes *cont.Set, indDisconnect uint32, LocalDispatchers []*TestLocalDispatcher,
-					numberNodes int, consensusers []*CalmConsensuser) {
+func DisconnectNode(subsetDisconnectedNodes *cont.Set, indDisconnect uint32, context *Context) {
 	subsetDisconnectedNodes.Erase(indDisconnect)
 
-	LocalDispatchers[indDisconnect].Stop()
-	for ind := 0; ind < numberNodes; ind++ {
-		if LocalDispatchers[ind].IsRunning() {
-			consensusers[ind].OnDisconnect(cont.NodeId(indDisconnect))
+	context.dispatchers[indDisconnect].Stop()
+	for ind := 0; ind < context.numberNodes; ind++ {
+		if context.dispatchers[ind].IsRunning() {
+			context.dispatchers[ind].cons.OnDisconnect(cont.NodeId(indDisconnect))
 		}
 	}
 }
@@ -274,23 +229,13 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 	Source := rand.NewSource(seed)
 	generator := rand.New(Source)
 
-	conf := NewMasterlessConfiguration(uint32(numberNodes))
-	carries := cont.NewCarriesN(numberCarries)
-	LocalDispatchers := NewLocalDispatchers(numberNodes, conf, t)
+	carries := cont.NewIntCarriesN(numberCarries, 0)
+	context := CreateNodes(numberNodes, carries, t)
 
-	subsetDisconnectedNodes := cont.NewRandomSubset(conf.Info, numberDisconnects, generator)
-	helper := newTestCommitHelper(numberNodes, carries.GetElementaryCarries(), LocalDispatchers)
-	consensusers := []*CalmConsensuser{}
-	for ind := 0; ind < numberNodes; ind++ {
-		cm := NewTestLocalCommitter(cont.NodeId(ind), helper)
-		cons := NewCalmConsensuser(LocalDispatchers[ind], conf, ind)
-		LocalDispatchers[ind].cons = cons
-		LocalDispatchers[ind].committer = cm
-		consensusers = append(consensusers, cons)
-	}
+	subsetDisconnectedNodes := cont.NewRandomSubset(context.conf.Info, numberDisconnects, generator)
 
 	carry, _ := carries.GetCarry(0)
-	consensusers[0].Propose(*carry)
+	context.dispatchers[0].Propose(*carry)
 
 	indLastPropose := uint32(0)
 	numberProposedCarries := 1
@@ -305,21 +250,21 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 				}
 
 				if indDisconnect != indLastPropose {
-					DisconnectNode(&subsetDisconnectedNodes, indDisconnect, LocalDispatchers, numberNodes, consensusers)
+					DisconnectNode(&subsetDisconnectedNodes, indDisconnect, context)
 				}
 			}
 
 			for ind := 0; ind < numberNodes; ind++ {
-				if LocalDispatchers[ind].proceedRandomMessage(generator, prob.probSwap) == true {
+				if context.dispatchers[ind].proceedRandomMessage(generator, prob.probSwap) == true {
 					flag = true
 				}
 			}
 
 			if numberProposedCarries < numberCarries {
-				ind := helper.findIndLastCommit(numberProposedCarries)
+				ind := context.helper.findIndLastCommit(numberProposedCarries)
 				if ind != -1 {
 					carry, _ = carries.GetCarry(numberProposedCarries)
-					consensusers[ind].Propose(*carry)
+					context.dispatchers[ind].cons.Propose(*carry)
 					indLastPropose = uint32(ind)
 					numberProposedCarries += 1
 					continue
@@ -335,7 +280,7 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 	for true {
 		flag := false
 		for ind := 0; ind < numberNodes; ind++ {
-			if LocalDispatchers[ind].proceedRandomMessage(generator, prob.probSwap) == true {
+			if context.dispatchers[ind].proceedRandomMessage(generator, prob.probSwap) == true {
 				flag = true
 			}
 		}
@@ -345,7 +290,7 @@ func RunRandomDisconnectTest(numberNodes int, numberCarries int, numberDisconnec
 		}
 	}
 
-	if helper.CheckSafety() == false {
+	if context.helper.CheckSafety() == false {
 		log.Printf("Carry isn't committed")
 		t.Fatal()
 	}
